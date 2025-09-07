@@ -1,0 +1,13 @@
+export const CharacterSDL = `
+    type Character {
+        id: ID!
+        name: String!
+        klass: String!
+        level: Int!
+    }
+
+    type Query {
+        characters: [Character!]!
+        character(id: ID!): Character
+    }
+`;
