@@ -4,6 +4,7 @@ export const CharacterSDL = `
         name: String!
         klass: String!
         level: Int!
+        profBonus: Int!
     }
 
     type Query {

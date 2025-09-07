@@ -1,5 +1,5 @@
 const data = [
-  { id: "1", name: "Aeon Solguard", klass: "Paladin", level: 5 },
+  { id: "1", name: "Aeon Solguard", klass: "Paladin", level: 5 }, 
   { id: "2", name: "Nyra Quickstep", klass: "Rogue", level: 5 },
 ];
 
@@ -11,11 +11,20 @@ export const characterResolvers = {
         character: (_: unknown, { id }: { id: string }) => 
            data.find(character => character.id === id) ?? null,
     },
+    
     Mutation: {
         createCharacter: (_: unknown, { input }: { input: { name: string, klass: string, level: number }}) => {
-            const newCharacter = { id: String(nextId++), ...input};
+            const { level } = input
+            if (level > 20 || level < 1) {
+                throw new Error("Character level must be between 1 and 20");
+            };
+            const newCharacter = { id: String(nextId++), ...input };
             data.push(newCharacter);
             return newCharacter;
         }
-    }
+    },
+    
+    Character: {
+        profBonus: (character: { level: number }) => Math.ceil(character.level * 0.25 + 1),
+    },
 }
