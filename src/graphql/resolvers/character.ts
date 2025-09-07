@@ -10,5 +10,12 @@ export const characterResolvers = {
         characters: () => data,
         character: (_: unknown, { id }: { id: string }) => 
            data.find(character => character.id === id) ?? null,
+    },
+    Mutation: {
+        createCharacter: (_: unknown, { input }: { input: { name: string, klass: string, level: number }}) => {
+            const newCharacter = { id: String(nextId++), ...input};
+            data.push(newCharacter);
+            return newCharacter;
+        }
     }
 }

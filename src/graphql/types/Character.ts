@@ -10,4 +10,14 @@ export const CharacterSDL = `
         characters: [Character!]!
         character(id: ID!): Character
     }
+
+    input CreateCharacterInput {
+        name: String!
+        klass: String!
+        level: Int!
+    }
+
+    type Mutation {
+        createCharacter(input: CreateCharacterInput!): Character!
+    }
 `;
