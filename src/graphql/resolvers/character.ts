@@ -65,6 +65,24 @@ export const characterResolvers = {
 
             return character;
         },
+        deleteCharacter: (_: unknown, { id }: { id: string }) => {
+            const index = data.findIndex((c) => c.id === id);
+
+            if (index !== -1) {  
+                data.splice(index, 1);
+                return {
+                    success: true,
+                    message: `Character ${id} deleted successfully`,
+                    deletedCharacterId: id
+                } 
+            }
+
+             return {   
+                success: true,
+                message: `Character ${id} not found`,
+                deletedCharacterId: id   
+            }
+        },
     },
     
     Character: {

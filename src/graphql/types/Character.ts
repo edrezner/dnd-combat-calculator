@@ -25,8 +25,15 @@ export const CharacterSDL = `
         level: Int
     }
 
+    type DeleteResponse {
+        success: Boolean!
+        message: String
+        deletedCharacterId: ID
+    }
+
     type Mutation {
         createCharacter(input: CreateCharacterInput!): Character!
         updateCharacter(input: UpdateCharacterInput!): Character!
+        deleteCharacter(id: ID!): DeleteResponse!
     }
 `;
