@@ -17,8 +17,16 @@ export const CharacterSDL = `
         klass: String!
         level: Int!
     }
+    
+    input UpdateCharacterInput {
+        id: ID!
+        name: String
+        klass: String
+        level: Int
+    }
 
     type Mutation {
         createCharacter(input: CreateCharacterInput!): Character!
+        updateCharacter(input: UpdateCharacterInput!): Character!
     }
 `;
