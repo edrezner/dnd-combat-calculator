@@ -1,11 +1,31 @@
 export const CharacterSDL = `
+    type AbilityScores {
+        str: Int!
+        dex: Int!
+        con: Int!
+        int: Int!
+        wis: Int!
+        cha: Int!
+    }
+    
+    input AbilityScoresInput {
+        str: Int
+        dex: Int
+        con: Int
+        int: Int
+        wis: Int
+        cha: Int
+    }
+
     type Character {
         id: ID!
         name: String!
         klass: String!
         level: Int!
         profBonus: Int!
+        abilityScores: AbilityScores!
     }
+    
 
     type Query {
         characters: [Character!]!
@@ -16,6 +36,7 @@ export const CharacterSDL = `
         name: String!
         klass: String!
         level: Int!
+        abilityScores: AbilityScoresInput!
     }
     
     input UpdateCharacterInput {
@@ -23,6 +44,7 @@ export const CharacterSDL = `
         name: String
         klass: String
         level: Int
+        abilityScores: AbilityScoresInput
     }
 
     type DeleteResponse {

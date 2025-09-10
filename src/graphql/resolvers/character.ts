@@ -1,14 +1,25 @@
+type AbilityScores = {
+    str: number;
+    dex: number;
+    con: number;
+    int: number;
+    wis: number;
+    cha: number;
+}
+
 type CharacterData = {
     id: string;
     name: string;
     klass: string;
     level: number;
+    abilityScores: AbilityScores;
 };
 
 type CreateCharacterInput = {
     name: string;
     klass: string;
     level: number;
+    abilityScores: AbilityScores;
 };
 
 type UpdateCharacterInput = {
@@ -16,11 +27,38 @@ type UpdateCharacterInput = {
     name?: string;
     klass?: string;
     level?: number;
+    abilityScores?: Partial<AbilityScores>;
+}
+
+
+const DEFAULT_SCORES: AbilityScores = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+const makeDefaultScores = (): AbilityScores => ({ ...DEFAULT_SCORES });
+
+function isValidScore(v: unknown, {min=3, max=25} = {}): v is number {
+  return Number.isInteger(v) && (v as number) >= min && (v as number) <= max;
+}
+
+function checkAbilityScores(scores: Partial<AbilityScores>) : asserts scores is AbilityScores {
+  const req: (keyof AbilityScores)[] = ["str","dex","con","int","wis","cha"];
+  for (const k of req) {
+    const v = scores[k];
+    if (!isValidScore(v)) {
+      throw new Error(`Ability score ${k} must be an integer in range 3 - 25.`);
+    }
+  }
+}
+
+function checkAbilityScorePatch(patch: Partial<AbilityScores>) {
+  for (const [k, v] of Object.entries(patch)) {
+    if (v !== undefined && !isValidScore(v)) {
+      throw new Error(`Ability score ${k} must be an integer in range 3 - 25.`);
+    }
+  }
 }
 
 const data: CharacterData[] = [
-  { id: "1", name: "Aeon Solguard", klass: "Paladin", level: 5 }, 
-  { id: "2", name: "Nyra Quickstep", klass: "Rogue", level: 5 },
+  { id: "1", name: "Aeon Solguard", klass: "Paladin", level: 5, abilityScores: makeDefaultScores() }, 
+  { id: "2", name: "Nyra Quickstep", klass: "Rogue", level: 5, abilityScores: makeDefaultScores() },
 ];
 
 let nextId = 3;
@@ -40,27 +78,32 @@ export const characterResolvers = {
     
     Mutation: {
         createCharacter: (_: unknown, { input }: { input: CreateCharacterInput }) => {
-            const { level } = input;
+            const { level, abilityScores } = input;
             
             checkCharacterLevel(level);
+            checkAbilityScores(abilityScores);
 
             const newCharacter = { id: String(nextId++), ...input };
             data.push(newCharacter);
             return newCharacter;
         }, 
         updateCharacter: (_: unknown, { input } : { input: UpdateCharacterInput }) => {
-            const { id, name, klass, level } = input;
+            const { id, name, klass, level, abilityScores: patch } = input;
             
             const character = data.find((c) => c.id === id);
 
-            if (!character) throw new Error(`"Character not found: ${id}`);
+            if (!character) throw new Error(`Character not found: ${id}`);
             
 
             if (typeof name === "string") character.name = name;
             if (typeof klass === "string") character.klass = klass;
             if (typeof level === "number") {
-            checkCharacterLevel(level);
-            character.level = level;
+                checkCharacterLevel(level);
+                character.level = level;
+            }
+            if (patch) {
+                checkAbilityScorePatch(patch);
+                character.abilityScores = { ...character.abilityScores, ...patch };
             }
 
             return character;
