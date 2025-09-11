@@ -1,11 +1,14 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+// src/app/api/graphql/route.ts
 import { createYoga } from "graphql-yoga";
-// import { NextRequest } from "next/server";
-import { schema } from "@/graphql/schema";
+import { schema } from "@/server/graphql/schema";
+
+
 
 export const { handleRequest } = createYoga({
-  schema,
+  schema,                      
   graphqlEndpoint: "/api/graphql",
   fetchAPI: { Response },
 });
 
-export { handleRequest as GET, handleRequest as POST };
+export { handleRequest as GET, handleRequest as POST, handleRequest as OPTIONS };

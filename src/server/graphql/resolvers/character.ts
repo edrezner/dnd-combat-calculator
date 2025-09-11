@@ -1,38 +1,8 @@
-type AbilityScores = {
-    str: number;
-    dex: number;
-    con: number;
-    int: number;
-    wis: number;
-    cha: number;
-}
+import { characters, nextId as _nextId, CharacterData, AbilityScores } from "@/data/characters";
+import { normalizeAbility, abilityMod, computeProfBonus } from "@/lib/dnd";
 
-type CharacterData = {
-    id: string;
-    name: string;
-    klass: string;
-    level: number;
-    abilityScores: AbilityScores;
-};
+let nextId = _nextId;
 
-type CreateCharacterInput = {
-    name: string;
-    klass: string;
-    level: number;
-    abilityScores: AbilityScores;
-};
-
-type UpdateCharacterInput = {
-    id: string;
-    name?: string;
-    klass?: string;
-    level?: number;
-    abilityScores?: Partial<AbilityScores>;
-}
-
-
-const DEFAULT_SCORES: AbilityScores = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
-const makeDefaultScores = (): AbilityScores => ({ ...DEFAULT_SCORES });
 
 function isValidScore(v: unknown, {min=3, max=25} = {}): v is number {
   return Number.isInteger(v) && (v as number) >= min && (v as number) <= max;
@@ -56,13 +26,6 @@ function checkAbilityScorePatch(patch: Partial<AbilityScores>) {
   }
 }
 
-const data: CharacterData[] = [
-  { id: "1", name: "Aeon Solguard", klass: "Paladin", level: 5, abilityScores: makeDefaultScores() }, 
-  { id: "2", name: "Nyra Quickstep", klass: "Rogue", level: 5, abilityScores: makeDefaultScores() },
-];
-
-let nextId = 3;
-
 function checkCharacterLevel(level: number) {
     if (level > 20 || level < 1) {
         throw new Error("Character level must be between 1 and 20");
@@ -71,26 +34,26 @@ function checkCharacterLevel(level: number) {
 
 export const characterResolvers = {
     Query: {
-        characters: () => data,
+        characters: () => characters,
         character: (_: unknown, { id }: { id: string }) => 
-           data.find(character => character.id === id) ?? null,
+           characters.find(c => c.id === id) ?? null,
     },
     
     Mutation: {
-        createCharacter: (_: unknown, { input }: { input: CreateCharacterInput }) => {
+        createCharacter: (_: unknown, { input }: { input: Omit<CharacterData, "id"> }) => {
             const { level, abilityScores } = input;
             
             checkCharacterLevel(level);
             checkAbilityScores(abilityScores);
 
             const newCharacter = { id: String(nextId++), ...input };
-            data.push(newCharacter);
+            characters.push(newCharacter);
             return newCharacter;
         }, 
-        updateCharacter: (_: unknown, { input } : { input: UpdateCharacterInput }) => {
+        updateCharacter: (_: unknown, { input } : { input: Partial<CharacterData> & { id: string } }) => {
             const { id, name, klass, level, abilityScores: patch } = input;
             
-            const character = data.find((c) => c.id === id);
+            const character = characters.find((c) => c.id === id);
 
             if (!character) throw new Error(`Character not found: ${id}`);
             
@@ -109,10 +72,10 @@ export const characterResolvers = {
             return character;
         },
         deleteCharacter: (_: unknown, { id }: { id: string }) => {
-            const index = data.findIndex((c) => c.id === id);
+            const index = characters.findIndex((c) => c.id === id);
 
             if (index !== -1) {  
-                data.splice(index, 1);
+                characters.splice(index, 1);
                 return {
                     success: true,
                     message: `Character ${id} deleted successfully`,
@@ -129,6 +92,6 @@ export const characterResolvers = {
     },
     
     Character: {
-        profBonus: (character: { level: number }) => Math.ceil(character.level * 0.25 + 1),
+        profBonus: (c: CharacterData) => computeProfBonus(c.level),
     },
 }
