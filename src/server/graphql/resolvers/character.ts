@@ -33,65 +33,81 @@ function checkCharacterLevel(level: number) {
 }
 
 export const characterResolvers = {
-    Query: {
-        characters: () => characters,
-        character: (_: unknown, { id }: { id: string }) => 
-           characters.find(c => c.id === id) ?? null,
-    },
+  Query: {
+    characters: () => characters,
+    character: (_: unknown, { id }: { id: string }) => 
+        characters.find(c => c.id === id) ?? null,
+  },
     
-    Mutation: {
-        createCharacter: (_: unknown, { input }: { input: Omit<CharacterData, "id"> }) => {
-            const { level, abilityScores } = input;
+  Mutation: {
+    createCharacter: (_: unknown, { input }: { input: Omit<CharacterData, "id"> }) => {
+      const { level, abilityScores } = input;
             
-            checkCharacterLevel(level);
-            checkAbilityScores(abilityScores);
+      checkCharacterLevel(level);
+      checkAbilityScores(abilityScores);
 
-            const newCharacter = { id: String(nextId++), ...input };
-            characters.push(newCharacter);
-            return newCharacter;
-        }, 
-        updateCharacter: (_: unknown, { input } : { input: Partial<CharacterData> & { id: string } }) => {
-            const { id, name, klass, level, abilityScores: patch } = input;
+      const newCharacter = { id: String(nextId++), ...input };
+      characters.push(newCharacter);
+      return newCharacter;
+    }, 
+      updateCharacter: (_: unknown, { input } : { input: Partial<CharacterData> & { id: string } }) => {
+        const { id, name, klass, level, abilityScores: patch } = input;
             
-            const character = characters.find((c) => c.id === id);
+        const character = characters.find((c) => c.id === id);
 
-            if (!character) throw new Error(`Character not found: ${id}`);
+        if (!character) throw new Error(`Character not found: ${id}`);
             
 
-            if (typeof name === "string") character.name = name;
-            if (typeof klass === "string") character.klass = klass;
-            if (typeof level === "number") {
-                checkCharacterLevel(level);
-                character.level = level;
-            }
-            if (patch) {
-                checkAbilityScorePatch(patch);
-                character.abilityScores = { ...character.abilityScores, ...patch };
-            }
+        if (typeof name === "string") character.name = name;
+        if (typeof klass === "string") character.klass = klass;
+        if (typeof level === "number") {
+          checkCharacterLevel(level);
+          character.level = level;
+        }
+        if (patch) {
+          checkAbilityScorePatch(patch);
+          character.abilityScores = { ...character.abilityScores, ...patch };
+        }
 
-            return character;
-        },
+        return character;
+      },
         deleteCharacter: (_: unknown, { id }: { id: string }) => {
-            const index = characters.findIndex((c) => c.id === id);
+          const index = characters.findIndex((c) => c.id === id);
 
-            if (index !== -1) {  
-                characters.splice(index, 1);
-                return {
-                    success: true,
-                    message: `Character ${id} deleted successfully`,
-                    deletedCharacterId: id
-                } 
-            }
+          if (index !== -1) {  
+            characters.splice(index, 1);
+            return {
+              success: true,
+              message: `Character ${id} deleted successfully`,
+              deletedCharacterId: id
+            } 
+          }
 
-             return {   
-                success: true,
-                message: `Character ${id} not found`,
-                deletedCharacterId: id   
-            }
+          return {   
+            success: true,
+            message: `Character ${id} not found`,
+            deletedCharacterId: id   
+          }
         },
     },
     
     Character: {
-        profBonus: (c: CharacterData) => computeProfBonus(c.level),
+      profBonus: (character: CharacterData) => computeProfBonus(character.level),
+      
+      mod: (character: CharacterData, { ability }: { ability: string }) => {
+        const key = normalizeAbility(ability);
+        const score = character.abilityScores[key];
+        return abilityMod(score);
+      },
+
+      toHit: (
+        character: CharacterData,
+        { using, proficient = true }: { using: string; proficient?: boolean }
+       ) => {
+        const key = normalizeAbility(using);
+        const mod = abilityMod(character.abilityScores[key]);
+        const pb = proficient ? computeProfBonus(character.level) : 0;
+        return mod + pb;
+       }
     },
 }

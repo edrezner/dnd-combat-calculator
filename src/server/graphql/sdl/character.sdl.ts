@@ -24,6 +24,8 @@ export const CharacterSDL = `
         level: Int!
         profBonus: Int!
         abilityScores: AbilityScores!
+        mod(ability: String!): Int!
+        toHit(using: String!, proficient: Boolean = true): Int! 
     }
     
 
