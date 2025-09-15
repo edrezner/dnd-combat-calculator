@@ -66,12 +66,15 @@ export function critChance({
 
 export function expectedDamage({ 
     hitChance, 
-    critChance, 
-    avgDamage 
+    critChance,
+    avgOnHit,
+    avgOnCrit 
 } : {
     hitChance: number;
     critChance: number;
-    avgDamage: number;
+    avgOnHit: number;
+    avgOnCrit: number;
 }) : number {
-    return avgDamage * (hitChance + critChance);
+    const nonCritChance = Math.max(0, hitChance - critChance);
+    return nonCritChance * avgOnHit + avgOnCrit * critChance;
 }
