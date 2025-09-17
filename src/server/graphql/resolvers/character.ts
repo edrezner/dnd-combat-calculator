@@ -1,5 +1,6 @@
 import { characters, nextId as _nextId, CharacterData, AbilityScores } from "@/data/characters";
 import { normalizeAbility, abilityMod, computeProfBonus } from "@/lib/dnd";
+import { hitChance, critChance, expectedDamage } from "@/lib/calc";
 
 let nextId = _nextId;
 
@@ -32,11 +33,34 @@ function checkCharacterLevel(level: number) {
     };
 }
 
+type CalcInput = {
+  attackBonus: number;
+  targetAC: number;
+  critRange?: number;
+  avgOnHit: number;
+  avgOnCrit: number;
+  advantage?: boolean;
+  disadvantage?: boolean;
+}
+
 export const characterResolvers = {
   Query: {
     characters: () => characters,
     character: (_: unknown, { id }: { id: string }) => 
-        characters.find(c => c.id === id) ?? null,
+      characters.find(c => c.id === id) ?? null,
+    calculate: (_: unknown, { input }: { input: CalcInput }) => {
+      const { attackBonus, targetAC, critRange = 20, avgOnHit, avgOnCrit, advantage = false, disadvantage = false } = input;
+      
+      if (attackBonus === undefined) throw new Error(`Attack bonus required to generate DPR`)
+      if (targetAC < 1 || targetAC === undefined) throw new Error(`Target's AC must be greater than 0`);
+      if (avgOnHit < 0 || avgOnCrit < 0 || avgOnHit === undefined || avgOnCrit === undefined) throw new Error(`Average damage must be non-negative`);
+
+      const hc = hitChance({ attackBonus, targetAC, advantage, disadvantage });
+      const cc = critChance({ critRange, advantage, disadvantage });
+      const ed = expectedDamage({ hitChance: hc, critChance: cc, avgOnHit, avgOnCrit });
+      
+      return { hitChance: hc, critChance: cc, expectedDamage: ed };
+    },
   },
     
   Mutation: {
@@ -108,6 +132,6 @@ export const characterResolvers = {
         const mod = abilityMod(character.abilityScores[key]);
         const pb = proficient ? computeProfBonus(character.level) : 0;
         return mod + pb;
-       }
+       }, 
     },
 }

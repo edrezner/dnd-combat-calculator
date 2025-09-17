@@ -1,2 +1,3 @@
 import { CharacterSDL } from "./character.sdl";
-export const typeDefs = [CharacterSDL];
+import { CalcSDL } from "./calc.sdl"
+export const typeDefs = [CharacterSDL, CalcSDL];
