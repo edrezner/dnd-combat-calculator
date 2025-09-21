@@ -3,9 +3,12 @@
 import { createYoga } from "graphql-yoga";
 import { schema } from "@/server/graphql/schema";
 
+interface NextContext {
+  params: Promise<Record<string, string>>;
+}
 
 
-export const { handleRequest } = createYoga({
+export const { handleRequest } = createYoga<NextContext>({
   schema,                      
   graphqlEndpoint: "/api/graphql",
   fetchAPI: { Response },

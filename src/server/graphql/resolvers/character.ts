@@ -29,7 +29,7 @@ function checkAbilityScorePatch(patch: Partial<AbilityScores>) {
 
 function checkCharacterLevel(level: number) {
     if (level > 20 || level < 1) {
-        throw new Error("Character level must be between 1 and 20");
+      throw new Error("Character level must be between 1 and 20");
     };
 }
 
