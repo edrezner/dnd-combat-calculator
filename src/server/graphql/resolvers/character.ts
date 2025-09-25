@@ -1,6 +1,7 @@
 import { characters, nextId as _nextId, CharacterData, AbilityScores } from "@/data/characters";
 import { normalizeAbility, abilityMod, computeProfBonus } from "@/lib/dnd";
 import { hitChance, critChance, expectedDamage } from "@/lib/calc";
+import { simulateDPR } from "@/lib/simulate";
 
 let nextId = _nextId;
 
@@ -61,6 +62,22 @@ export const characterResolvers = {
       
       return { hitChance: hc, critChance: cc, expectedDamage: ed };
     },
+    simulate: (_: unknown, { input, trials }: { input: CalcInput; trials: number }) => {
+      const { attackBonus, targetAC, critRange = 20, avgOnHit, avgOnCrit, advantage = false, disadvantage = false } = input;
+
+      if (!Number.isFinite(attackBonus)) throw new Error("attackBonus is required");
+      if (!Number.isFinite(targetAC) || targetAC < 1) throw new Error("targetAC must be ≥ 1");
+      if (!Number.isFinite(avgOnHit) || !Number.isFinite(avgOnCrit) || avgOnHit < 0 || avgOnCrit < 0) {
+        throw new Error("Average damage must be non-negative numbers");
+      };
+
+      if (!Number.isFinite(trials)) throw new Error("trials must be a number");
+      if (trials < 1000 || trials > 200_000) throw new Error("trials must be 1,000–200,000");
+
+      const { mean, ciLow, ciHigh } = simulateDPR(trials, { attackBonus, targetAC, critRange, avgOnHit, avgOnCrit, advantage, disadvantage });
+
+      return { mean, ciLow, ciHigh };
+    }
   },
     
   Mutation: {
