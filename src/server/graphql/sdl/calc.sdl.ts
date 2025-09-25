@@ -15,7 +15,14 @@ export const CalcSDL = `
         expectedDamage: Float!
     }
 
+    type SimResult {
+        mean: Float!
+        ciLow: Float!
+        ciHigh: Float!
+    }
+
     extend type Query {
         calculate(input: CalcInput!): CalcResult!
+        simulate(input: CalcInput!, trials: Int!): SimResult!
     }
 `
