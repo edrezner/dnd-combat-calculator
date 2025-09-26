@@ -14,6 +14,16 @@ const CALCULATE = gql`
   }
 `;
 
+const SIMULATE = gql`
+  query Simulate($input: CalcInput!, $trials: Int!) {
+    simulate(input: $input, trials: $trials) {
+      mean
+      ciLow
+      ciHigh
+    }
+  }
+`
+
 type State = {
   attackBonus: string;
   targetAC: string;
@@ -22,6 +32,7 @@ type State = {
   avgOnCrit: string;
   advantage: boolean;
   disadvantage: boolean;
+  trials: string;
 };
 
 type Action =
@@ -48,6 +59,18 @@ type CalculateVars = {
   };
 };
 
+type SimulateData = {
+  simulate: {
+    mean: number;
+    ciLow: number;
+    ciHigh: number;
+  };
+};
+
+type SimulateVars = CalculateVars & {
+  trials: number;
+}
+
 const initialState: State = {
   attackBonus: "7",
   targetAC: "15",
@@ -56,6 +79,7 @@ const initialState: State = {
   avgOnCrit: "20",
   advantage: false,
   disadvantage: false,
+  trials: "10000"
 };
 
 function reducer(state: State, action: Action): State {
@@ -71,10 +95,24 @@ function reducer(state: State, action: Action): State {
 
 export default function CalcPage() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const [runCalc, { data, loading, error, called }] = useLazyQuery<CalculateData, CalculateVars>(CALCULATE);
+  
+  const [runCalc, { 
+    data: calcData, 
+    loading: calcLoading, 
+    error: calcError, 
+    called: calcCalled 
+  }] = useLazyQuery<CalculateData, CalculateVars>(CALCULATE);
+  
+  const [runSim, {
+    data: simData,
+    loading: simLoading,
+    error: simError,
+    called: simCalled
+  }] = useLazyQuery<SimulateData, SimulateVars>(SIMULATE, {fetchPolicy: "no-cache" });
 
   function toInt(s: string): number {
-    const num = parseInt(s, 10);
+    const cleaned = s.replace(/[^\d-]/g, "");
+    const num = parseInt(cleaned, 10);
     return Number.isFinite(num) ? num : 0;
   };
 
@@ -99,19 +137,23 @@ export default function CalcPage() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
 
+    const input = {
+      attackBonus: toInt(state.attackBonus),
+      targetAC: toInt(state.targetAC),
+      critRange: toInt(state.critRange),          
+      avgOnHit: toFloat(state.avgOnHit),
+      avgOnCrit: toFloat(state.avgOnCrit),
+      advantage: state.advantage,
+      disadvantage: state.disadvantage,
+    }
+
     runCalc({
-      variables: {
-        input: {
-          attackBonus: toInt(state.attackBonus),
-          targetAC: toInt(state.targetAC),
-          critRange: toInt(state.critRange),
-          avgOnHit: toFloat(state.avgOnHit),
-          avgOnCrit: toFloat(state.avgOnCrit),
-          advantage: state.advantage,
-          disadvantage: state.disadvantage,
-        }
-      }
+      variables: { input }
     });
+
+    runSim({
+      variables: { input, trials: toInt(state.trials) } 
+    })
   }
 
   return (
@@ -208,10 +250,10 @@ export default function CalcPage() {
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={loading}
+            disabled={calcLoading}
             className="rounded-2xl px-4 py-2 border shadow-sm disabled:opacity-60"
           >
-            {loading ? 'Calculating…' : 'Calculate'}
+            {calcLoading ? 'Calculating…' : 'Calculate'}
           </button>
           <button
             type="button"
@@ -221,19 +263,48 @@ export default function CalcPage() {
             Reset
           </button>
         </div>
+
+        <div className="flex items-end gap-2">
+          <label className="flex flex-col">
+            <span className="text-sm text-gray-600">Trials</span>
+            <input
+              type="number"
+              name="trials"
+              min={1000}
+              max={200000}
+              step={1000}
+              value={state.trials}
+              onChange={onChange}
+              className="rounded-xl border px-3 py-2"
+            />
+          </label>
+          <button type="button" onClick={() => dispatch({ type:"field", name:"trials", value: "10000" })} className="rounded-2xl border px-3 py-2">10k</button>
+          <button type="button" onClick={() => dispatch({ type:"field", name:"trials", value: "100000" })} className="rounded-2xl border px-3 py-2">100k</button>
+        </div>
       </form>
 
       <section className="rounded-2xl border p-4">
         <h2 className="font-medium mb-2">Results</h2>
-        {error && <p className="text-red-600">Error: {error.message}</p>}
-        {!called && <p className="text-gray-600">Enter values and hit Calculate.</p>}
-        {called && !loading && !error && (
+        {(calcError || simError) && <p className="text-red-600">Error: {calcError?.message || simError?.message}</p>}
+
+        {(!calcCalled || !simCalled) && <p className="text-gray-600">Enter values and hit Calculate.</p>}
+        
+        {calcCalled && !calcLoading && !calcError && (
           <>
-            <p>Hit Chance: <strong>{toPercent(data?.calculate?.hitChance)}</strong></p>
-            <p>Crit Chance: <strong>{toPercent(data?.calculate?.critChance)}</strong></p>
-            <p>Expected Damage: <strong>{data?.calculate?.expectedDamage?.toFixed(2)}</strong></p>
+            <p>Hit Chance: <strong>{toPercent(calcData?.calculate?.hitChance)}</strong></p>
+            <p>Crit Chance: <strong>{toPercent(calcData?.calculate?.critChance)}</strong></p>
+            <p>Expected Damage: <strong>{calcData?.calculate?.expectedDamage?.toFixed(2)}</strong></p>
           </>
         )}
+
+        {simCalled && !simLoading && !simError && (
+          <p className="mt-2">
+            Simulated Damage: <strong>{(simData?.simulate?.mean.toFixed(2))}</strong>
+            {" "}(95% CI {simData?.simulate?.ciLow.toFixed(2)}-{simData?.simulate?.ciHigh.toFixed(2)})
+          </p>
+        )}
+
+        {(calcLoading || simLoading) && <p>Crunching...</p>} 
       </section>
     </main>
   )

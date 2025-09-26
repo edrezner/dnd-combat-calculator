@@ -72,9 +72,10 @@ export const characterResolvers = {
       };
 
       if (!Number.isFinite(trials)) throw new Error("trials must be a number");
-      if (trials < 1000 || trials > 200_000) throw new Error("trials must be 1,000–200,000");
+      
+      const t = Math.max(1000, Math.min(200_000, Math.floor(trials)));
 
-      const { mean, ciLow, ciHigh } = simulateDPR(trials, { attackBonus, targetAC, critRange, avgOnHit, avgOnCrit, advantage, disadvantage });
+      const { mean, ciLow, ciHigh } = simulateDPR(t, { attackBonus, targetAC, critRange, avgOnHit, avgOnCrit, advantage, disadvantage });
 
       return { mean, ciLow, ciHigh };
     }
