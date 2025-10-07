@@ -52,10 +52,10 @@ describe("GraphQL calculate and simulate", () => {
     it("simulate returns mean within CI and it is roughly close to expected", async () => {
         const source = `
             query Sim($input: CalcInput!, $trials: Int!) {
-            simulate(input: $input, trials: $trials) {
-                mean
-                ciLow
-                ciHigh
+                simulate(input: $input, trials: $trials) {
+                    mean
+                    ciLow
+                    ciHigh
             }
         }
         `;
