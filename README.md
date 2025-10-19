@@ -40,8 +40,8 @@ We simulate `trials` independent attacks under the same rules and report:
 
 ## Scripts
 
-- `npm run dev` — Next dev server
-- `npm run test` — Vitest unit + integration tests
+- `npm run dev` - Next dev server
+- `npm run test` - Vitest unit + integration tests
 
 ## Tech
 
