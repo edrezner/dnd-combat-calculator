@@ -1,6 +1,6 @@
 type Die = 4 | 6 | 8 | 10 | 12 | 20;
 
-type DiceTerm = {
+export type DiceTerm = {
     count: number;
     sides: Die;
     plus?: number;  
@@ -8,32 +8,37 @@ type DiceTerm = {
 
 type DiceExpr = DiceTerm [];
 
-// function parseDice(dicePlusMods: string): DiceExpr {
-//     const regex = /(\d*)d(\d+)([+-]\d+)?/;
-//     const match = dicePlusMods.match(regex);
+export function sidesValidate (num: number) {
+    let dieArr = [4, 6, 8, 10, 12, 20];
 
-//     if (!match) throw new Error("Dice format must be xdy + z.")
+    for (let i = 0; i < dieArr.length; i++) {
+        let die = dieArr[i];
 
-//     const count = match[1] ? parseInt(match[1]) : 1; 
-//     const sides = parseInt(match[2]);
-//     const plus = match[3] ? parseInt(match[3]) : 0;
+        if (die === num) return num;
+    }
 
-    // if (
-    //     sides !== 4 ||
-    //     sides !== 6 ||
-    //     sides !== 8 ||
-    //     sides !== 10 ||
-    //     sides !== 12 ||
-    //     sides !== 20
-    // ) {
-    //     throw new Error("Dice sides must equal 4, 6, 8, 10, 12, or 20.")
-    // }
+    throw new Error("Dice must have 4, 6, 8, 10, 12 or 20 sides.");
+};
 
-//   return [{ count, sides, plus }];
+export function avg(expr: DiceExpr): number {
+    let total: number = 0;
 
-    
-// }
+    if (expr.length === 0) return 0;
 
-// function avg(expr: DiceExpr): number {
+    for (let term of expr) {
+        const count = term.count;
+        const sides = term.sides;
+        const plus = term.plus;
 
-// }
+
+        if (count <= 0 || !Number.isInteger(count)) throw new Error("There must be at least one whole number die rolled.");
+        sidesValidate(sides);
+        if (plus !== undefined && (plus < 0 || !Number.isInteger(plus))) throw new Error("Flat modifiers must be integers.")
+
+        total += count * ((sides + 1) / 2);
+
+        if (plus !== undefined) total += plus;
+    }
+
+    return total;
+};
