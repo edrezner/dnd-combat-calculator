@@ -6,7 +6,7 @@ export type DiceTerm = {
     plus?: number;  
 }
 
-type DiceExpr = DiceTerm [];
+export type DiceExpr = DiceTerm [];
 
 export function sidesValidate (num: number) {
     let dieArr = [4, 6, 8, 10, 12, 20];
