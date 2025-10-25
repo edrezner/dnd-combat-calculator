@@ -12,7 +12,7 @@ export function avgDamage(components: DamageComponent[], isCrit: boolean): numbe
     let total = 0;
 
     for (const { expr, bonus, critDoublesDice = true } of components) {
-        if (bonus !== undefined && !Number.isInteger(bonus)) throw new Error("Damage bonus must be integers.");
+        if (bonus !== undefined && !Number.isInteger(bonus)) throw new Error("Damage bonus must be an integer.");
 
         const diceAvg = avg(expr);
         const diceTotals = critDoublesDice && isCrit ? diceAvg * 2 : diceAvg;
