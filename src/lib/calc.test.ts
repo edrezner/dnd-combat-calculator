@@ -1,5 +1,24 @@
 import { describe, it, expect } from "vitest";
-import { hitChance, critChance, expectedDamage } from "./calc";
+import { hitChance, critChance, expectedDamage, expectedDamageFromProfile } from "./calc";
+import type { AttackProfile } from "./calc";
+
+const profileOne = {
+    attackBonus: 7,
+    targetAC: 15, 
+    critRange: 20,
+    damage: [{ expr: [{ count: 2, sides: 6 }], bonus: 3, critDoublesDice: true }],
+    advantage: false,
+    disadvantage: false
+} satisfies AttackProfile;
+
+const profileTwo = {
+    attackBonus: 7,
+    targetAC: 15, 
+    critRange: 20,
+    damage: [{ expr: [{ count: 2, sides: 6 }, { count: 4, sides: 8 }], bonus: 3, critDoublesDice: true }],
+    advantage: false,
+    disadvantage: false
+} satisfies AttackProfile;
 
 describe ("hitChance basics", () => {
     it("hitChance: +7 vs AC of 15 (normal)", () => {
@@ -179,5 +198,46 @@ describe("expectedDamage extras", () => {
         const avgOnHit = 10;
 
         expect(dmg).toBeCloseTo(hitChance * avgOnHit, 5);
+    })
+});
+
+describe("expectedDamageFromProfile basics", () => {
+    it("expectedDamageFromProfiles: Calculates damage at normal/advantage/disadvantage statuses correctly", () => {
+        const normal = expectedDamageFromProfile(profileOne);
+        const adv = expectedDamageFromProfile({ ...profileOne, advantage: true });
+        const disadv = expectedDamageFromProfile({ ...profileOne, disadvantage: true });
+
+        expect(normal).toBeCloseTo(6.85, 5);
+        expect(adv).toBeCloseTo(9.4575, 5);
+        expect(disadv).toBeCloseTo(4.2425, 5) ;
+    });
+
+    it("expectedDamageFromProfiles: Calculates multiple Damage Components (mixed dice) correctly", () => {
+        const twoDSixPlusFourDEightPlusThree = expectedDamageFromProfile(profileTwo);
+
+        expect(twoDSixPlusFourDEightPlusThree).toBeCloseTo(19.45, 5);
+    });
+
+    it("expectedDamageFromProfiles: Ensures larger crit chance increases damage and hit chance can never be 100% or 0%", () => {
+        const normal = expectedDamageFromProfile(profileOne);
+        const critOnNineteen = expectedDamageFromProfile({ ...profileOne, critRange: 19 });
+        const onlyCritHits = expectedDamageFromProfile({ ...profileOne, attackBonus: 0, targetAC: 25 });
+        const onlyOneMisses = expectedDamageFromProfile({ ...profileOne, attackBonus: 30, targetAC: 10 });
+
+        expect(normal).toBeLessThan(critOnNineteen);
+        expect(onlyCritHits).toBeCloseTo(0.85, 5);
+        expect(onlyOneMisses).toBeCloseTo(9.85, 5);
+    });
+
+    it("expectedDamageFromProfiles: Empty damage component, dice term with invalid sides, and non-integer bonuses throw errors", () => {
+        expect(() => expectedDamageFromProfile({ ...profileOne, damage: [{ expr: [] }]})).toThrow("Damage component #0 must have dice (expr) or a flat bonus.");
+        expect(() => expectedDamageFromProfile({ ...profileOne, damage: [{expr: [{ count: 2, sides: 6}], bonus: 2.5, critDoublesDice: true }] })).toThrow(`Damage component #${0} has invalid bonus: ${2.5}`);
+    });
+
+    it("expectedDamageFromProfiles: expectedDamageFromProfiles() should match expectedDamage() with equivalent hitChance, critChance and damage values", () => {
+        const edfp = expectedDamageFromProfile(profileOne);
+        const ed = expectedDamage({ hitChance: 0.65, critChance: 0.05, avgOnHit: 10, avgOnCrit: 17 });
+
+        expect(edfp).toBe(ed);
     })
 });

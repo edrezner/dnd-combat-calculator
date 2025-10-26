@@ -1,3 +1,38 @@
+import { avgDamage, DamageComponent, assertValidComponents } from "./damage";
+
+export type AttackProfile = {
+    attackBonus: number;
+    targetAC: number;
+    critRange?: number;
+    damage: DamageComponent[];
+    advantage?: boolean;
+    disadvantage?: boolean
+}
+
+// hitChance returns *overall* hit probability (includes crits with nat 1 auto-miss/default nat 20 auto-hit rules).
+// critChance returns crit probability
+// nonCritChance clamps hitChance - critChance at 0 and avoids double counting crits.
+
+export function expectedDamageFromProfile(profile: AttackProfile): number {
+    const { attackBonus, targetAC, critRange = 20, damage, advantage = false, disadvantage = false } = profile;
+    if (!Number.isInteger(attackBonus)) throw new Error("Attack bonus must be an integer.");
+    if (!Number.isInteger(targetAC)) throw new Error("Target AC must be an integer.");
+
+    assertValidComponents(damage);
+
+    const hc = hitChance({ attackBonus, targetAC, advantage, disadvantage});
+    const cc = critChance({ critRange, advantage, disadvantage});
+    
+    const nonCritChance = Math.max(0, hc - cc);
+    
+    const avgOnHit = avgDamage(damage, false);
+    const avgOnCrit = avgDamage(damage, true);
+    
+    const expected = avgOnHit * nonCritChance + avgOnCrit * cc;
+
+    return expected;
+}
+
 export function hitChance({
     attackBonus,
     targetAC,

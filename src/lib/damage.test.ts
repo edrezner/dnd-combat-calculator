@@ -26,8 +26,8 @@ const componentNoDice = [{
 
 describe("avgDamage() - damage averaging and crit tests", () => {
     it("avgDamage: Normal attack with 2d6 + 3 non-crit and crit", () => {
-        expect(avgDamage(componentOne, false)).toBe(10);
-        expect(avgDamage(componentOne, true)).toBe(17);
+        expect(avgDamage(componentOne, false)).toBe(7 + 3);
+        expect(avgDamage(componentOne, true)).toBe(14 + 3);
     });
 
     it("avgDamage: Handles multiple dice components correctly", () => {
