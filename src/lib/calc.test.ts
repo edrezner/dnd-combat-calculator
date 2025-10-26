@@ -212,13 +212,13 @@ describe("expectedDamageFromProfile basics", () => {
         expect(disadv).toBeCloseTo(4.2425, 5) ;
     });
 
-    it("expectedDamageFromProfiles: Calculates multiple Damage Components (mixed dice) correctly", () => {
+    it("expectedDamageFromProfile: Calculates multiple Damage Components (mixed dice) correctly", () => {
         const twoDSixPlusFourDEightPlusThree = expectedDamageFromProfile(profileTwo);
 
         expect(twoDSixPlusFourDEightPlusThree).toBeCloseTo(19.45, 5);
     });
 
-    it("expectedDamageFromProfiles: Ensures larger crit chance increases damage and hit chance can never be 100% or 0%", () => {
+    it("expectedDamageFromProfile: Ensures larger crit chance increases damage and hit chance can never be 100% or 0%", () => {
         const normal = expectedDamageFromProfile(profileOne);
         const critOnNineteen = expectedDamageFromProfile({ ...profileOne, critRange: 19 });
         const onlyCritHits = expectedDamageFromProfile({ ...profileOne, attackBonus: 0, targetAC: 25 });
@@ -229,12 +229,12 @@ describe("expectedDamageFromProfile basics", () => {
         expect(onlyOneMisses).toBeCloseTo(9.85, 5);
     });
 
-    it("expectedDamageFromProfiles: Empty damage component, dice term with invalid sides, and non-integer bonuses throw errors", () => {
+    it("expectedDamageFromProfiles Empty damage component, dice term with invalid sides, and non-integer bonuses throw errors", () => {
         expect(() => expectedDamageFromProfile({ ...profileOne, damage: [{ expr: [] }]})).toThrow("Damage component #0 must have dice (expr) or a flat bonus.");
         expect(() => expectedDamageFromProfile({ ...profileOne, damage: [{expr: [{ count: 2, sides: 6}], bonus: 2.5, critDoublesDice: true }] })).toThrow(`Damage component #${0} has invalid bonus: ${2.5}`);
     });
 
-    it("expectedDamageFromProfiles: expectedDamageFromProfiles() should match expectedDamage() with equivalent hitChance, critChance and damage values", () => {
+    it("expectedDamageFromProfiles expectedDamageFromProfiles() should match expectedDamage() with equivalent hitChance, critChance and damage values", () => {
         const edfp = expectedDamageFromProfile(profileOne);
         const ed = expectedDamage({ hitChance: 0.65, critChance: 0.05, avgOnHit: 10, avgOnCrit: 17 });
 

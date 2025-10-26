@@ -1,7 +1,10 @@
+import { GraphQLError } from "graphql";
 import { characters, nextId as _nextId, CharacterData, AbilityScores } from "@/data/characters";
 import { normalizeAbility, abilityMod, computeProfBonus } from "@/lib/dnd";
-import { hitChance, critChance, expectedDamage } from "@/lib/calc";
+import { hitChance, critChance, expectedDamage, expectedDamageFromProfile } from "@/lib/calc";
 import { simulateDPR } from "@/lib/simulate";
+import { sidesValidate } from "@/lib/dice";
+import { assertValidComponents } from "@/lib/damage";
 
 let nextId = _nextId;
 
@@ -33,6 +36,66 @@ function checkCharacterLevel(level: number) {
       throw new Error("Character level must be between 1 and 20");
     };
 }
+
+function mapDiceTermInput(t: { count: number; sides: number; plus?: number}) {
+  const { count, sides, plus = 0 } = t;
+
+  if (!Number.isInteger(count) || count < 1) {
+    throw new GraphQLError(`DiceTerm.count must be >= 1 (received ${count})`, { extensions: { code: "BAD_USER_INPUT"} });
+  };
+
+  if (!Number.isInteger(sides) || !sidesValidate(sides)) {
+    throw new GraphQLError(`DiceTerm.sides must be 4, 6, 8, 10, 12, or 20 (received ${sides})`, { extensions: { code: "BAD_USER_INPUT"} });
+  };
+
+  if (!Number.isInteger(plus)) {
+    throw new GraphQLError(`DiceTerm.plus must be an integer (received ${plus})`, { extensions: { code: "BAD_USER_INPUT"} });
+  };
+
+  return { count, sides, plus};
+};
+
+function mapDamageComponentInput (c: {
+  expr: Array<{ count: number; sides: number; plus?: number }>;
+  bonus?: number | null;
+  critDoublesDice?: boolean | null;
+}) {
+  if (!Array.isArray(c.expr) || c.expr.length === 0) {
+    throw new GraphQLError(`DamageComponent.expr must be a non-empty array`, { extensions: { code: "BAD_USER_INPUT"} });
+  };
+
+  const expr = c.expr.map(mapDiceTermInput);
+  const bonus = c.bonus ?? 0;
+
+  if (!Number.isInteger(bonus)) {
+    throw new GraphQLError(`DamageComponent.bonus must be an integer (received ${bonus})`, { extensions: { code: "BAD_USER_INPUT"} });
+  };
+
+  const critDoublesDice = c.critDoublesDice ?? true;
+
+  return { expr, bonus, critDoublesDice };
+};
+
+function mapAttackProfileInput (p: any) {
+  ["attackBonus", "targetAC"].forEach((k) => {
+    if (!Number.isInteger(p[k])) {
+      throw new GraphQLError(`${k} must be an integer`, { extensions: { code: "BAD_USER_INPUT"} });
+    }
+  });
+
+  const { attackBonus, targetAC, critRange, advantage, disadvantage } = p;
+
+  if (!Array.isArray(p.damage) || p.damage.length === 0) {
+    throw new GraphQLError(`AttackProfile.damage must be a non-empty array`, { extensions: { code: "BAD_USER_INPUT"} });
+  };
+
+  const damage = p.damage.map(mapDamageComponentInput);
+
+  assertValidComponents(damage);
+
+  return { attackBonus, targetAC, critRange, damage, advantage, disadvantage };
+}
+
 
 type CalcInput = {
   attackBonus: number;
@@ -78,6 +141,15 @@ export const characterResolvers = {
       const { mean, ciLow, ciHigh } = simulateDPR(t, { attackBonus, targetAC, critRange, avgOnHit, avgOnCrit, advantage, disadvantage });
 
       return { mean, ciLow, ciHigh };
+    },
+    calculateProfile: (_: unknown, { profile }: any) => {
+      const mapped = mapAttackProfileInput(profile);
+
+      const hc = hitChance(mapped);
+      const cc = critChance(mapped);
+      const expectedDamage = expectedDamageFromProfile(mapped);
+
+      return { hitChance: hc, critChance: cc, expectedDamage };
     }
   },
     
