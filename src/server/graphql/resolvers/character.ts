@@ -8,7 +8,6 @@ import { assertValidComponents } from "@/lib/damage";
 
 let nextId = _nextId;
 
-
 function isValidScore(v: unknown, {min=3, max=25} = {}): v is number {
   return Number.isInteger(v) && (v as number) >= min && (v as number) <= max;
 }

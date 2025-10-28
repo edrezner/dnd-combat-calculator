@@ -180,7 +180,39 @@ describe("GraphQL calculate and calculateProfile", () => {
         expect(res.data).toBeNull();
         expect(res.errors?.length).toBeGreaterThan(0);
         expect(res.errors?.[0].message).toMatch(/sides/i);
-        // expect(res.errors?.some(e => (e as any).extensions?.code === "BAD_USER_INPUT")).toBe(true);
     });
+    
+    it("calculateProfile lowers expectedDamage when critDoublesDice is false", async () => {
+        const nonDoubleCritInput = {
+            attackBonus: 7,
+                targetAC: 15,
+                critRange: 20,
+                damage: [
+                    {
+                        expr: [{ count: 2, sides: 6 }],
+                        bonus: 3,
+                        critDoublesDice: false
+                    }
+                ],
+                advantage: false,
+                disadvantage: false
+        };
 
-})
+        const critDouble = await graphql({
+            schema,
+            source: sourceCalculateProf,
+            variableValues: AttackProfileInput
+        });
+
+        const nonCritDouble = await graphql({
+            schema,
+            source: sourceCalculateProf,
+            variableValues: { input: nonDoubleCritInput }
+        });
+
+        const critDoubleData = (critDouble.data as any).calculateProfile;
+        const nonCritDoubleData = (nonCritDouble.data as any).calculateProfile;
+
+        expect(critDoubleData.expectedDamage).toBeGreaterThan(nonCritDoubleData.expectedDamage);
+    });
+});
