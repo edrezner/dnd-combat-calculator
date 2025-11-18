@@ -62,10 +62,22 @@ export const CalcSDL = `
         advantage: Boolean
         disadvantage: Boolean
     }
+    
+    enum TransformMode {
+        UPPER
+        LOWER
+        REVERSE
+    }
+
+    type StringToolsResult {
+        original: String!
+        transformed: String!
+        length: Int!
+    }
 
     extend type Query {
         calculate(input: CalcInput!): CalcResult!
         simulate(input: CalcInput!, trials: Int!): SimResult!
         calculateProfile(profile: AttackProfileInput!): CalcResult!
     }
-`
+`;

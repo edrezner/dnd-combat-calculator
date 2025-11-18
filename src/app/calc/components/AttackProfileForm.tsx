@@ -227,7 +227,7 @@ export default function AttackProfileForm() {
           </label>
 
           <label className="flex flex-col">
-            <span className="text-sm text-gray-600">Crit on (2–20)</span>
+            <span className="text-sm text-gray-600">Crit on (2-20)</span>
             <input
               type="number"
               name="critRange"
@@ -258,6 +258,11 @@ export default function AttackProfileForm() {
             />
             <span className="text-sm text-gray-600">Disadvantage</span>
           </label>
+          {state.advantage && state.disadvantage && (
+            <p className="text-sm text-gray-600">
+              Advantage and Disadvantage cancel out to a normal roll
+            </p>
+          )}
         </div>
 
         {/* Damage rows */}
@@ -332,7 +337,17 @@ export default function AttackProfileForm() {
               <button
                 type="button"
                 onClick={() => removeRow(i)}
-                className="rounded-2xl px-3 py-2 border"
+                disabled={state.damage.length === 1}
+                className={`
+                  rounded-2xl px-3 py-2 border text-sm font-medium
+                  transition-colors
+
+                  ${
+                    state.damage.length === 1
+                      ? "border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed"
+                      : "border-red-400 text-red-600 bg-red-50 hover:bg-red-100"
+                  }
+                  `}
               >
                 Remove
               </button>
