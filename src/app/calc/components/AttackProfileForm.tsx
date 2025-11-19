@@ -30,6 +30,7 @@ type State = {
   advantage: boolean;
   disadvantage: boolean;
   damage: DamageRow[];
+  formError: string;
 };
 
 type Action =
@@ -46,7 +47,9 @@ type Action =
       name: keyof DamageRow;
       value: string | boolean;
     }
-  | { type: "reset" };
+  | { type: "reset" }
+  | { type: "setFormError"; message: string }
+  | { type: "clearFormError" };
 
 type CalcProfileData = {
   calculateProfile: {
@@ -85,6 +88,7 @@ const initialState: State = {
   advantage: false,
   disadvantage: false,
   damage: [initialRow],
+  formError: "",
 };
 
 function reducer(state: State, action: Action): State {
@@ -105,6 +109,12 @@ function reducer(state: State, action: Action): State {
         [action.name]: action.value as never,
       };
       return { ...state, damage: next };
+    }
+    case "setFormError": {
+      return { ...state, formError: action.message };
+    }
+    case "clearFormError": {
+      return { ...state, formError: "" };
     }
     case "reset":
       return initialState;
@@ -180,9 +190,15 @@ export default function AttackProfileForm() {
       .filter(Boolean) as CalcProfileVars["profile"]["damage"];
 
     if (damage.length === 0) {
-      alert("Please add at least one valid damage row (e.g., 1d8 + 0).");
+      dispatch({
+        type: "setFormError",
+        message:
+          "Please add at least one valid damage expression (e.g. 1d8 + 0).",
+      });
       return;
     }
+
+    dispatch({ type: "clearFormError" });
 
     const profile: CalcProfileVars["profile"] = {
       attackBonus: toInt(state.attackBonus),
@@ -356,6 +372,7 @@ export default function AttackProfileForm() {
         </div>
 
         <div className="flex gap-3">
+          {state.formError && <p className="text-red-600">{state.formError}</p>}
           <button
             type="submit"
             disabled={loading}
