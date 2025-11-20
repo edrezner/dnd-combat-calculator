@@ -15,6 +15,8 @@ export type AttackTag =
   | "polearm"
   | "weapon"
   | "spell"
+  | "spell-attack"
+  | "spell-save"
   | "bludgeoning"
   | "piercing"
   | "slashing"
