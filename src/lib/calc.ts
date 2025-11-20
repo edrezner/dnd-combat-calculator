@@ -1,5 +1,35 @@
 import { avgDamage, DamageComponent, assertValidComponents } from "./damage";
 
+export type AttackTag =
+  | "melee"
+  | "ranged"
+  | "versatile"
+  | "heavy"
+  | "two-handed"
+  | "finesse"
+  | "martial"
+  | "simple"
+  | "light"
+  | "ammunition"
+  | "loading"
+  | "polearm"
+  | "weapon"
+  | "spell"
+  | "bludgeoning"
+  | "piercing"
+  | "slashing"
+  | "fire"
+  | "cold"
+  | "lightning"
+  | "acid"
+  | "poison"
+  | "thunder"
+  | "psychic"
+  | "force"
+  | "radiant"
+  | "necrotic"
+  | "evocation";
+
 export type AttackProfile = {
   attackBonus: number;
   targetAC: number;
@@ -7,6 +37,7 @@ export type AttackProfile = {
   damage: DamageComponent[];
   advantage?: boolean;
   disadvantage?: boolean;
+  tags?: AttackTag[];
 };
 
 // hitChance returns *overall* hit probability (includes crits with nat 1 auto-miss/default nat 20 auto-hit rules).
