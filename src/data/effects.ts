@@ -33,6 +33,8 @@ export const dueling: Effect = {
     const tags = profile.tags ?? [];
 
     return (
+      tags.includes("melee") &&
+      tags.includes("weapon") &&
       !tags.includes("heavy") &&
       !tags.includes("ranged") &&
       !tags.includes("two-handed")
@@ -190,5 +192,29 @@ export const bless: Effect = {
   requiresSimulation: true,
   apply(profile, _ctx) {
     return profile;
+  },
+};
+
+export const agonizingBlast: Effect = {
+  id: "agonizing-blast",
+  label: "Agonizing Blast",
+  tags: ["damage-bonus"],
+  applies(profile, _ctx) {
+    const tags = profile.tags ?? [];
+    return tags.includes("spell-attack");
+  },
+  apply(profile, ctx) {
+    if (ctx.level == null) return profile;
+    const attackBonus = profile.attackBonus;
+    const profBonus = computeProfBonus(ctx.level);
+    const attrBonus = Math.abs(attackBonus - profBonus);
+    // note: assumes count = number of beams (e.g. EB 2 beams at level 5 = 2d10)
+    const multiplier = profile.damage[0].expr[0].count;
+    const bonus = attrBonus * multiplier;
+
+    return {
+      ...profile,
+      damage: [...profile.damage, { expr: [], bonus, critDoublesDice: false }],
+    };
   },
 };
