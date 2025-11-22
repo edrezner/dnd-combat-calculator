@@ -30,6 +30,23 @@ export const CalcSDL = `
         damage: [DamageComponent!]!
         advantage: Boolean
         disadvantage: Boolean
+        tags: [String]
+    }
+    
+    type EffectMeta {
+        id: ID!
+        label: String!
+        tags: [String]
+        requiresSimulation: Boolean
+    }
+
+    type Kit {
+        id: ID!
+        label: String!
+    }
+
+    type BuildFromKitResult {
+        result: CalcResult!
     }
 
     input CalcInput {
@@ -61,23 +78,22 @@ export const CalcSDL = `
         damage: [DamageComponentInput!]!
         advantage: Boolean
         disadvantage: Boolean
-    }
-    
-    enum TransformMode {
-        UPPER
-        LOWER
-        REVERSE
+        tags: [String]
     }
 
-    type StringToolsResult {
-        original: String!
-        transformed: String!
-        length: Int!
+    input BuildFromKitInput {
+        kitId: ID!
+        level: Int!
+        effectIds: [ID!]!
+        targetAC: Int!
     }
 
     extend type Query {
         calculate(input: CalcInput!): CalcResult!
         simulate(input: CalcInput!, trials: Int!): SimResult!
         calculateProfile(profile: AttackProfileInput!): CalcResult!
+        kits: [Kit!]!
+        effects: [EffectMeta!]!
+        buildFromKit(input: BuildFromKitInput!): BuildFromKitResult!
     }
 `;

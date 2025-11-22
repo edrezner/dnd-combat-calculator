@@ -15,6 +15,12 @@ import {
 import { simulateDPR } from "@/lib/simulate";
 import { sidesValidate } from "@/lib/dice";
 import { assertValidComponents } from "@/lib/damage";
+import { ALL_KITS } from "@/data/kits";
+import * as EFFECTS from "@/data/effects";
+import { applyEffects } from "@/lib/effects";
+
+const ALL_KITS_CONST = Object.values(ALL_KITS);
+const ALL_EFFECTS = Object.values(EFFECTS);
 
 let nextId = _nextId;
 
@@ -231,6 +237,85 @@ export const characterResolvers = {
       const expectedDamage = expectedDamageFromProfile(mapped);
 
       return { hitChance: hc, critChance: cc, expectedDamage };
+    },
+    kits: () => {
+      return ALL_KITS_CONST;
+    },
+    effects: () => {
+      return ALL_EFFECTS.map((effect) => ({
+        id: effect.id,
+        label: effect.label,
+        tags: effect.tags,
+        requiresSimulation: effect.requiresSimulation ?? false,
+      }));
+    },
+    buildFromKit: (_: unknown, { input }: any) => {
+      const { kitId, level, effectIds, targetAC } = input;
+      console.log("buildFromKit input:", input, "kitId typeof:", typeof kitId);
+
+      checkCharacterLevel(level);
+
+      if (!Number.isInteger(targetAC) || targetAC < 1) {
+        throw new GraphQLError(
+          "Target's AC must be an integer greater than 0.",
+          {
+            extensions: { code: "BAD_USER_INPUT" },
+          }
+        );
+      }
+
+      if (!Array.isArray(effectIds)) {
+        throw new GraphQLError("effectIds must be an array.", {
+          extensions: { code: "BAD_USER_INPUT" },
+        });
+      }
+
+      if (kitId.trim() === "" || typeof kitId !== "string") {
+        throw new GraphQLError("kitId must be a non-empty string.", {
+          extensions: { code: "BAD_USER_INPUT" },
+        });
+      }
+
+      const kit = ALL_KITS_CONST.find((k) => k.id === kitId);
+      if (!kit)
+        throw new GraphQLError("Class kit not found", {
+          extensions: { code: "BAD_USER_INPUT" },
+        });
+
+      // Only including first attack for now
+      const baseFromKit = kit.attacks[0].profile;
+
+      const base = {
+        ...baseFromKit,
+        targetAC,
+        advantage: baseFromKit.advantage ?? false,
+        disadvantage: baseFromKit.disadvantage ?? false,
+      };
+
+      const effects = ALL_EFFECTS.filter((effect) =>
+        effectIds.includes(effect.id)
+      );
+
+      // EffectContext type needs an object, not just a number
+      const ctx = { level };
+
+      const { profile: finalProfile /* requiresSimulation */ } = applyEffects(
+        base,
+        effects,
+        ctx
+      );
+
+      const hc = hitChance(finalProfile);
+      const cc = critChance(finalProfile);
+      const ed = expectedDamageFromProfile(finalProfile);
+
+      return {
+        result: {
+          hitChance: hc,
+          critChance: cc,
+          expectedDamage: ed,
+        },
+      };
     },
   },
 
