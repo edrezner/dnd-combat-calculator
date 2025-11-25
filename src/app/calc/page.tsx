@@ -3,10 +3,12 @@
 import { useState } from "react";
 import QuickCalcForm from "./components/QuickCalcForm";
 import AttackProfileForm from "./components/AttackProfileForm";
+import BuildFromKitForm from "./components/BuildFromKitForm";
 
 enum Mode {
   QUICK = "quick",
   PROFILE = "profile",
+  KIT = "kit",
 }
 
 export default function CalcPage() {
@@ -34,11 +36,26 @@ export default function CalcPage() {
           } `}
           disabled={mode === Mode.PROFILE}
         >
-          Attack Profile
+          Attack Profile (Manual entry of dice/effects)
+        </button>
+        <button
+          onClick={() => setMode(Mode.KIT)}
+          className={`rounded-2xl px-4 py-2 border ${
+            mode === Mode.KIT ? "bg-blue-600 text-white" : ""
+          } `}
+          disabled={mode === Mode.KIT}
+        >
+          Class Kit
         </button>
       </div>
       {/* Forms */}
-      {mode === Mode.QUICK ? <QuickCalcForm /> : <AttackProfileForm />}
+      {mode === Mode.QUICK ? (
+        <QuickCalcForm />
+      ) : mode === Mode.PROFILE ? (
+        <AttackProfileForm />
+      ) : (
+        <BuildFromKitForm />
+      )}
     </main>
   );
 }

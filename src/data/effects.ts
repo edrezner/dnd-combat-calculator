@@ -209,6 +209,7 @@ export const agonizingBlast: Effect = {
     const profBonus = computeProfBonus(ctx.level);
     const attrBonus = Math.abs(attackBonus - profBonus);
     // note: assumes count = number of beams (e.g. EB 2 beams at level 5 = 2d10)
+    // since attackBonus is static, Warlock agonizingBlast damage bonus decreases as level increases. Fix to come when attackBonus is made dynamic.
     const multiplier = profile.damage[0].expr[0].count;
     const bonus = attrBonus * multiplier;
 

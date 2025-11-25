@@ -378,7 +378,7 @@ export default function AttackProfileForm() {
             disabled={loading}
             className="rounded-2xl px-4 py-2 border shadow-sm disabled:opacity-60"
           >
-            {loading ? "Calculating…" : "Calculate"}
+            {loading ? "Calculating..." : "Calculate"}
           </button>
           <button
             type="button"

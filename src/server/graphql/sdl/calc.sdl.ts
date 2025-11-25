@@ -43,6 +43,7 @@ export const CalcSDL = `
     type Kit {
         id: ID!
         label: String!
+        availableEffects: [ID!]!
     }
 
     type BuildFromKitResult {
