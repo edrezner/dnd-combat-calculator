@@ -1,8 +1,9 @@
 "use client";
 
-import { useReducer, ChangeEvent, FormEvent } from "react";
+import { useState, useReducer, ChangeEvent, FormEvent } from "react";
 import { gql } from "@apollo/client";
-import { useLazyQuery } from "@apollo/client/react";
+import { useLazyQuery, useApolloClient } from "@apollo/client/react";
+import { DprPoint, DprVsAcChart } from "./DprVsAcChart";
 
 const CALCULATE_PROFILE = gql`
   query CalculateProfile($profile: AttackProfileInput!) {
@@ -129,6 +130,11 @@ export default function AttackProfileForm() {
     CalcProfileData,
     CalcProfileVars
   >(CALCULATE_PROFILE);
+  const client = useApolloClient();
+
+  const [chartData, setChartData] = useState<DprPoint[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState<string | null>(null);
 
   function toInt(s: string): number {
     const cleaned = s.replace(/[^\d-]/g, "");
@@ -167,19 +173,18 @@ export default function AttackProfileForm() {
     dispatch({ type: "removeRow", index });
   }
 
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-
-    // Basic client validation
+  const buildProfileFromState = (): CalcProfileVars["profile"] | null => {
     const crit = Math.min(20, Math.max(2, toInt(state.critRange)));
+
     const damage = state.damage
       .map((row) => {
         const count = toInt(row.count);
         const sides = Number(row.sides) as Die;
         const bonus = toInt(row.bonus);
 
-        if (!count || !sides || ![4, 6, 8, 10, 12, 20].includes(sides))
+        if (!count || !sides || ![4, 6, 8, 10, 12, 20].includes(sides)) {
           return null;
+        }
 
         return {
           expr: [{ count, sides }],
@@ -195,7 +200,7 @@ export default function AttackProfileForm() {
         message:
           "Please add at least one valid damage expression (e.g. 1d8 + 0).",
       });
-      return;
+      return null;
     }
 
     dispatch({ type: "clearFormError" });
@@ -209,7 +214,67 @@ export default function AttackProfileForm() {
       damage,
     };
 
+    return profile;
+  };
+
+  const generateChartFromProfile = async (
+    baseProfile: CalcProfileVars["profile"]
+  ) => {
+    setChartError(null);
+    setChartLoading(true);
+
+    try {
+      const acValues = [
+        10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+      ];
+
+      const results = await Promise.all(
+        acValues.map(async (ac) => {
+          const vars: CalcProfileVars = {
+            profile: {
+              ...baseProfile,
+              targetAC: ac,
+            },
+          };
+
+          const { data } = await client.query<CalcProfileData, CalcProfileVars>(
+            {
+              query: CALCULATE_PROFILE,
+              variables: vars,
+              fetchPolicy: "no-cache",
+            }
+          );
+
+          if (!data || !data.calculateProfile) {
+            throw new Error("No data returned from calculateProfile");
+          }
+
+          return {
+            ac,
+            dpr: data.calculateProfile.expectedDamage,
+          } satisfies DprPoint;
+        })
+      );
+
+      setChartData(results);
+    } catch (err: any) {
+      console.error(err);
+      setChartError(err.message ?? "Failed to generate chart");
+      setChartData([]);
+    } finally {
+      setChartLoading(false);
+    }
+  };
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+
+    const profile = buildProfileFromState();
+    if (!profile) return;
+
     runCalc({ variables: { profile } });
+
+    void generateChartFromProfile(profile);
   }
 
   function toPercent(x?: number | null): string {
@@ -389,6 +454,18 @@ export default function AttackProfileForm() {
           </button>
         </div>
       </form>
+
+      <section className="mt-6">
+        {chartLoading && (
+          <p className="text-sm text-gray-600 mb-2">
+            Generating DPR vs AC chart...
+          </p>
+        )}
+        {chartError && (
+          <p className="text-sm text-red-600 mb-2">{chartError}</p>
+        )}
+        <DprVsAcChart data={chartData} />
+      </section>
 
       <section className="rounded-2xl border p-4 mt-4">
         <h2 className="font-medium mb-2">Results</h2>
