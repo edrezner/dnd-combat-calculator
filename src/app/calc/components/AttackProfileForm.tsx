@@ -224,34 +224,86 @@ export default function AttackProfileForm() {
     setChartLoading(true);
 
     try {
-      const acValues = [
-        10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-      ];
+      let acStartIndex = baseProfile.targetAC;
+
+      if (acStartIndex >= 4) acStartIndex -= 3;
+
+      const acValues = Array.from({ length: 11 }, (_, i) => i + acStartIndex);
 
       const results = await Promise.all(
         acValues.map(async (ac) => {
-          const vars: CalcProfileVars = {
+          const varsNormal: CalcProfileVars = {
             profile: {
               ...baseProfile,
               targetAC: ac,
+              advantage: false,
+              disadvantage: false,
             },
           };
 
-          const { data } = await client.query<CalcProfileData, CalcProfileVars>(
-            {
-              query: CALCULATE_PROFILE,
-              variables: vars,
-              fetchPolicy: "no-cache",
-            }
-          );
+          const varsAdvantage: CalcProfileVars = {
+            profile: {
+              ...baseProfile,
+              targetAC: ac,
+              advantage: true,
+              disadvantage: false,
+            },
+          };
 
-          if (!data || !data.calculateProfile) {
+          const varsDisadvantage: CalcProfileVars = {
+            profile: {
+              ...baseProfile,
+              targetAC: ac,
+              advantage: false,
+              disadvantage: true,
+            },
+          };
+
+          // Currently running 3 queries for each AC value (normal/adv/dis).
+          // Look into batched/multi-mode GraphQL Resolver or client side math for scalability
+          const { data: dataNormal } = await client.query<
+            CalcProfileData,
+            CalcProfileVars
+          >({
+            query: CALCULATE_PROFILE,
+            variables: varsNormal,
+            fetchPolicy: "no-cache",
+          });
+
+          const { data: dataAdv } = await client.query<
+            CalcProfileData,
+            CalcProfileVars
+          >({
+            query: CALCULATE_PROFILE,
+            variables: varsAdvantage,
+            fetchPolicy: "no-cache",
+          });
+
+          const { data: dataDisadv } = await client.query<
+            CalcProfileData,
+            CalcProfileVars
+          >({
+            query: CALCULATE_PROFILE,
+            variables: varsDisadvantage,
+            fetchPolicy: "no-cache",
+          });
+
+          if (
+            !dataNormal ||
+            !dataNormal.calculateProfile ||
+            !dataAdv ||
+            !dataAdv.calculateProfile ||
+            !dataDisadv ||
+            !dataDisadv.calculateProfile
+          ) {
             throw new Error("No data returned from calculateProfile");
           }
 
           return {
             ac,
-            dpr: data.calculateProfile.expectedDamage,
+            dprNormal: dataNormal.calculateProfile.expectedDamage,
+            dprAdvantage: dataAdv.calculateProfile.expectedDamage,
+            dprDisadvantage: dataDisadv.calculateProfile.expectedDamage,
           } satisfies DprPoint;
         })
       );

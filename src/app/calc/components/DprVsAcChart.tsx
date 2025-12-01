@@ -14,7 +14,9 @@ import {
 
 export interface DprPoint {
   ac: number;
-  dpr: number;
+  dprNormal: number;
+  dprAdvantage: number;
+  dprDisadvantage: number;
 }
 
 interface DprVsAcChartProps {
@@ -41,7 +43,11 @@ export function DprVsAcChart({ data }: DprVsAcChartProps) {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="ac"
-            label={{ value: "Target AC", position: "insideBottom", offset: -1 }}
+            label={{
+              value: "Target AC",
+              position: "insideBottom",
+              offset: 1,
+            }}
           />
           <YAxis
             label={{
@@ -52,11 +58,27 @@ export function DprVsAcChart({ data }: DprVsAcChartProps) {
             }}
           />
           <Tooltip />
-          <Legend />
+          <Legend align="center" />
           <Line
             type="monotone"
-            dataKey="dpr"
+            dataKey="dprNormal"
             name="Normal"
+            strokeWidth={2}
+            dot={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="dprAdvantage"
+            name="Advantage"
+            stroke="green"
+            strokeWidth={2}
+            dot={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="dprDisadvantage"
+            name="Disadvantage"
+            stroke="red"
             strokeWidth={2}
             dot={false}
           />
