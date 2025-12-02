@@ -7,12 +7,13 @@ import {
 } from "@/data/characters";
 import { normalizeAbility, abilityMod, computeProfBonus } from "@/lib/dnd";
 import {
+  AttackProfile,
   hitChance,
   critChance,
   expectedDamage,
   expectedDamageFromProfile,
 } from "@/lib/calc";
-import { simulateDPR } from "@/lib/simulate";
+import { CalcInput, simulateDPR, calcInputFromProfile } from "@/lib/simulate";
 import { sidesValidate } from "@/lib/dice";
 import { assertValidComponents } from "@/lib/damage";
 import { ALL_KITS } from "@/data/kits";
@@ -137,16 +138,6 @@ function mapAttackProfileInput(p: any) {
   return { attackBonus, targetAC, critRange, damage, advantage, disadvantage };
 }
 
-type CalcInput = {
-  attackBonus: number;
-  targetAC: number;
-  critRange?: number;
-  avgOnHit: number;
-  avgOnCrit: number;
-  advantage?: boolean;
-  disadvantage?: boolean;
-};
-
 export const characterResolvers = {
   Query: {
     characters: () => characters,
@@ -203,7 +194,7 @@ export const characterResolvers = {
       if (!Number.isFinite(attackBonus))
         throw new Error("attackBonus is required");
       if (!Number.isFinite(targetAC) || targetAC < 1)
-        throw new Error("targetAC must be ≥ 1");
+        throw new Error("targetAC must be >= 1");
       if (
         !Number.isFinite(avgOnHit) ||
         !Number.isFinite(avgOnCrit) ||
@@ -316,6 +307,20 @@ export const characterResolvers = {
           expectedDamage: ed,
         },
       };
+    },
+    simulateProfile: (
+      _: unknown,
+      { profile, trials }: { profile: AttackProfile; trials: number }
+    ) => {
+      const simProfile = calcInputFromProfile(profile);
+
+      if (!Number.isFinite(trials)) throw new Error("trials must be a number");
+
+      const t = Math.max(1000, Math.min(200_000, Math.floor(trials)));
+
+      const { mean, ciLow, ciHigh } = simulateDPR(t, simProfile);
+
+      return { mean, ciLow, ciHigh };
     },
   },
 

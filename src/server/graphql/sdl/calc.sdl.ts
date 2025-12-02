@@ -96,5 +96,6 @@ export const CalcSDL = `
         kits: [Kit!]!
         effects: [EffectMeta!]!
         buildFromKit(input: BuildFromKitInput!): BuildFromKitResult!
+        simulateProfile(profile: AttackProfileInput!, trials: Int!): SimResult!
     }
 `;
