@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useReducer, ChangeEvent, FormEvent } from "react";
+import {
+  useState,
+  useReducer,
+  ChangeEvent,
+  FormEvent,
+  SyntheticEvent,
+} from "react";
 import { gql } from "@apollo/client";
 import { useLazyQuery, useApolloClient } from "@apollo/client/react";
 import { DprPoint, DprVsAcChart } from "./DprVsAcChart";
@@ -11,6 +17,16 @@ const CALCULATE_PROFILE = gql`
       hitChance
       critChance
       expectedDamage
+    }
+  }
+`;
+
+const SIMULATE_PROFILE = gql`
+  query SimulateProfile($profile: AttackProfileInput!, $trials: Int!) {
+    simulateProfile(profile: $profile, trials: $trials) {
+      mean
+      ciLow
+      ciHigh
     }
   }
 `;
@@ -32,6 +48,7 @@ type State = {
   disadvantage: boolean;
   damage: DamageRow[];
   formError: string;
+  trials: string;
 };
 
 type Action =
@@ -75,6 +92,18 @@ type CalcProfileVars = {
   };
 };
 
+type SimulateProfileData = {
+  simulateProfile: {
+    mean: number;
+    ciLow: number;
+    ciHigh: number;
+  };
+};
+
+type SimulateProfileVars = CalcProfileVars & {
+  trials: number;
+};
+
 const initialRow: DamageRow = {
   count: "1",
   sides: 8,
@@ -90,6 +119,7 @@ const initialState: State = {
   disadvantage: false,
   damage: [initialRow],
   formError: "",
+  trials: "10000",
 };
 
 function reducer(state: State, action: Action): State {
@@ -126,10 +156,16 @@ function reducer(state: State, action: Action): State {
 
 export default function AttackProfileForm() {
   const [state, dispatch] = useReducer(reducer, initialState);
+
   const [runCalc, { data, loading, error, called }] = useLazyQuery<
     CalcProfileData,
     CalcProfileVars
   >(CALCULATE_PROFILE);
+  const [
+    runSim,
+    { data: simData, loading: simLoading, error: simError, called: simCalled },
+  ] = useLazyQuery<SimulateProfileData, SimulateProfileVars>(SIMULATE_PROFILE);
+
   const client = useApolloClient();
 
   const [chartData, setChartData] = useState<DprPoint[]>([]);
@@ -318,13 +354,18 @@ export default function AttackProfileForm() {
     }
   };
 
-  function onSubmit(e: FormEvent) {
+  function onSubmit(e: SyntheticEvent) {
     e.preventDefault();
+    dispatch({ type: "clearFormError" });
+
+    const eventSubmitter = (e.nativeEvent as SubmitEvent).submitter?.id;
 
     const profile = buildProfileFromState();
     if (!profile) return;
 
-    runCalc({ variables: { profile } });
+    if (eventSubmitter === "Calculate") runCalc({ variables: { profile } });
+    if (eventSubmitter === "Simulate")
+      runSim({ variables: { profile, trials: toInt(state.trials) } });
 
     void generateChartFromProfile(profile);
   }
@@ -494,9 +535,32 @@ export default function AttackProfileForm() {
             type="submit"
             disabled={loading}
             className="rounded-2xl px-4 py-2 border shadow-sm disabled:opacity-60"
+            id="Calculate"
           >
             {loading ? "Calculating..." : "Calculate"}
           </button>
+          <button
+            type="submit"
+            disabled={simLoading}
+            className="rounded-2xl px-4 py-2 border shadow-sm disabled:opacity-60"
+            id="Simulate"
+          >
+            {simLoading ? "Simulating..." : "Simulate"}
+          </button>
+          <label className="flex flex-col">
+            <span className="text-sm text-gray-600">Trials</span>
+            <input
+              type="number"
+              name="trials"
+              min={1000}
+              max={200000}
+              step={1000}
+              value={state.trials}
+              onChange={onTopFieldChange}
+              placeholder="10000"
+              className="rounded-xl border px-3 py-2"
+            />
+          </label>
           <button
             type="button"
             onClick={() => dispatch({ type: "reset" })}
@@ -508,6 +572,10 @@ export default function AttackProfileForm() {
       </form>
 
       <section className="mt-6">
+        <p className="text-sm text-gray-600 mb-2">
+          Chart: analytic expected DPR vs AC (normal / advantage /
+          disadvantage).
+        </p>
         {chartLoading && (
           <p className="text-sm text-gray-600 mb-2">
             Generating DPR vs AC chart...
@@ -521,9 +589,15 @@ export default function AttackProfileForm() {
 
       <section className="rounded-2xl border p-4 mt-4">
         <h2 className="font-medium mb-2">Results</h2>
-        {error && <p className="text-red-600">Error: {error.message}</p>}
-        {!called && (
-          <p className="text-gray-600">Enter values and hit Calculate.</p>
+        {(error || simError) && (
+          <p className="text-red-600">
+            Error: {error?.message || simError?.message}
+          </p>
+        )}
+        {!called && !simCalled && (
+          <p className="text-gray-600">
+            Enter values and hit Calculate or Simulate.
+          </p>
         )}
         {called && !loading && !error && (
           <>
@@ -543,7 +617,17 @@ export default function AttackProfileForm() {
             </p>
           </>
         )}
-        {loading && <p>Crunching...</p>}
+        {simCalled && !simLoading && !simError && (
+          <>
+            <p>
+              Simulated Damage:{" "}
+              <strong>{simData?.simulateProfile?.mean.toFixed(2)}</strong> (95%
+              CI {simData?.simulateProfile?.ciLow.toFixed(2)}-
+              {simData?.simulateProfile?.ciHigh.toFixed(2)})
+            </p>
+          </>
+        )}
+        {(loading || simLoading) && <p>Crunching...</p>}
       </section>
     </>
   );
