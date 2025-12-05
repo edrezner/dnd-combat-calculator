@@ -48,6 +48,7 @@ export const CalcSDL = `
 
     type BuildFromKitResult {
         result: CalcResult!
+        profile: AttackProfile!
     }
 
     input CalcInput {

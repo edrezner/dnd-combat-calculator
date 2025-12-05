@@ -3,6 +3,7 @@
 import { useReducer, ChangeEvent, FormEvent } from "react";
 import { gql } from "@apollo/client";
 import { useQuery, useLazyQuery } from "@apollo/client/react";
+import { SIMULATE_PROFILE, SimulateProfileData } from "./AttackProfileForm";
 
 const GET_KITS_AND_EFFECTS = gql`
   query GetKitsAndEffects {
@@ -28,6 +29,23 @@ const BUILD_FROM_KIT = gql`
         critChance
         expectedDamage
       }
+      profile {
+        attackBonus
+        targetAC
+        critRange
+        advantage
+        disadvantage
+        damage {
+          expr {
+            count
+            sides
+            plus
+          }
+          bonus
+          critDoublesDice
+        }
+        tags
+      }
     }
   }
 `;
@@ -38,12 +56,13 @@ type State = {
   effectIds: string[];
   targetAC: string;
   formError: string;
+  trials: string;
 };
 
 type Action =
   | {
       type: "field";
-      name: "kitId" | "level" | "targetAC";
+      name: "kitId" | "level" | "targetAC" | "trials";
       value: string;
     }
   | {
@@ -63,6 +82,7 @@ const initialState: State = {
   effectIds: [],
   targetAC: "15",
   formError: "",
+  trials: "10000",
 };
 
 function reducer(state: State, action: Action): State {
@@ -107,6 +127,23 @@ type BuildFromKitData = {
       critChance: number;
       expectedDamage: number;
     };
+    profile: {
+      attackBonus: number;
+      targetAC: number;
+      critRange?: number;
+      advantage?: boolean;
+      disadvantage?: boolean;
+      damage: {
+        expr: {
+          count: number;
+          sides: number;
+          plus?: number;
+        }[];
+        bonus?: number;
+        critDoublesDice?: boolean;
+      }[];
+      tags?: string[];
+    };
   };
 };
 
@@ -117,6 +154,11 @@ type BuildFromKitVars = {
     effectIds: string[];
     targetAC: number;
   };
+};
+
+type SimulateProfileVars = {
+  profile: BuildFromKitData["buildFromKit"]["profile"];
+  trials: number;
 };
 
 export default function BuildFromKitForm() {
@@ -132,6 +174,11 @@ export default function BuildFromKitForm() {
     runBuild,
     { data: buildData, loading: loadingBuild, error: buildError, called },
   ] = useLazyQuery<BuildFromKitData, BuildFromKitVars>(BUILD_FROM_KIT);
+
+  const [
+    runSim,
+    { data: simData, loading: simLoading, error: simError, called: simCalled },
+  ] = useLazyQuery<SimulateProfileData, SimulateProfileVars>(SIMULATE_PROFILE);
 
   const selectedKit = data?.kits.find((k) => k.id === state.kitId);
 
@@ -197,6 +244,47 @@ export default function BuildFromKitForm() {
     };
 
     runBuild({ variables: { input } });
+  }
+
+  function buildProfileInputFromKit(
+    profile: BuildFromKitData["buildFromKit"]["profile"]
+  ): SimulateProfileVars["profile"] {
+    // Strip __typename at every level & normalize optional fields
+    return {
+      attackBonus: profile.attackBonus,
+      targetAC: profile.targetAC,
+      critRange: profile.critRange ?? 20,
+      advantage: profile.advantage ?? false,
+      disadvantage: profile.disadvantage ?? false,
+      tags: profile.tags ?? [],
+      damage: profile.damage.map((dc) => ({
+        expr: dc.expr.map((t) => ({
+          count: t.count,
+          sides: t.sides,
+          plus: t.plus ?? 0,
+        })),
+        bonus: dc.bonus ?? 0,
+        critDoublesDice: dc.critDoublesDice ?? true,
+      })),
+    };
+  }
+  function handleSimulate() {
+    if (!buildData) {
+      dispatch({
+        type: "setFormError",
+        message: "Run Calculate first to build the profile.",
+      });
+      return;
+    }
+    const kitProfile = buildData?.buildFromKit.profile;
+    const inputProfile = buildProfileInputFromKit(kitProfile);
+
+    runSim({
+      variables: {
+        profile: inputProfile,
+        trials: toInt(state.trials),
+      },
+    });
   }
 
   function toInt(s: string): number {
@@ -286,6 +374,31 @@ export default function BuildFromKitForm() {
           >
             {loadingBuild ? "Loading..." : "Calculate"}
           </button>
+
+          <button
+            type="button"
+            disabled={simLoading || !buildData}
+            onClick={handleSimulate}
+            className="rounded-2xl px-4 py-2 border shadow-sm disabled:opacity-60"
+          >
+            {simLoading ? "Simulating..." : "Simulate"}
+          </button>
+
+          <label className="flex flex-col">
+            <span className="text-sm text-gray-600">Trials</span>
+            <input
+              type="number"
+              name="trials"
+              min={1000}
+              max={200000}
+              step={1000}
+              value={state.trials}
+              onChange={onTopFieldChange}
+              placeholder="10000"
+              className="rounded-xl border px-3 py-2"
+            />
+          </label>
+
           <button
             type="button"
             onClick={() => dispatch({ type: "reset" })}
@@ -298,10 +411,12 @@ export default function BuildFromKitForm() {
 
       <section className="rounded-2xl border p-4 mt-4">
         <h2 className="font-medium mb-2">Results</h2>
-        {buildError && (
-          <p className="text-red-600">Error: {buildError.message}</p>
+        {(buildError || simError) && (
+          <p className="text-red-600">
+            Error: {buildError?.message || simError?.message}
+          </p>
         )}
-        {!called && (
+        {!called && !simCalled && (
           <p className="text-gray-600">Enter values and hit Calculate.</p>
         )}
         {called && !loadingBuild && !buildError && (
@@ -325,6 +440,15 @@ export default function BuildFromKitForm() {
               </strong>
             </p>
           </>
+        )}
+
+        {simCalled && !simLoading && !simError && (
+          <p>
+            Simulated Damage:{" "}
+            <strong>{simData?.simulateProfile?.mean.toFixed(2)}</strong> (95% CI{" "}
+            {simData?.simulateProfile?.ciLow.toFixed(2)}-
+            {simData?.simulateProfile?.ciHigh.toFixed(2)})
+          </p>
         )}
         {loadingBuild && <p>Compiling Build...</p>}
       </section>

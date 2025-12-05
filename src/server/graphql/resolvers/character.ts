@@ -306,6 +306,7 @@ export const characterResolvers = {
           critChance: cc,
           expectedDamage: ed,
         },
+        profile: finalProfile,
       };
     },
     simulateProfile: (

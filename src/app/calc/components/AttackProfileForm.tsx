@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useReducer,
-  ChangeEvent,
-  FormEvent,
-  SyntheticEvent,
-} from "react";
+import { useState, useReducer, ChangeEvent, SyntheticEvent } from "react";
 import { gql } from "@apollo/client";
 import { useLazyQuery, useApolloClient } from "@apollo/client/react";
 import { DprPoint, DprVsAcChart } from "./DprVsAcChart";
@@ -21,7 +15,7 @@ const CALCULATE_PROFILE = gql`
   }
 `;
 
-const SIMULATE_PROFILE = gql`
+export const SIMULATE_PROFILE = gql`
   query SimulateProfile($profile: AttackProfileInput!, $trials: Int!) {
     simulateProfile(profile: $profile, trials: $trials) {
       mean
@@ -92,7 +86,7 @@ type CalcProfileVars = {
   };
 };
 
-type SimulateProfileData = {
+export type SimulateProfileData = {
   simulateProfile: {
     mean: number;
     ciLow: number;
