@@ -18,7 +18,7 @@ export function assertValidComponents(components: DamageComponent[]): void {
 
     if (!hasDice && !hasBonus) {
       throw new Error(
-        `Damage component #${i} must have dice (expr) or a flat bonus.`
+        `Damage component #${i} must have dice (expr) or a flat bonus.`,
       );
     }
 
@@ -26,7 +26,7 @@ export function assertValidComponents(components: DamageComponent[]): void {
       for (const [j, term] of comp.expr.entries()) {
         if (!Number.isInteger(term.count) || term.count < 0) {
           throw new Error(
-            `expr term #${j} of component #${i} has invalid count: ${term.count}`
+            `expr term #${j} of component #${i} has invalid count: ${term.count}`,
           );
         }
 
@@ -34,7 +34,7 @@ export function assertValidComponents(components: DamageComponent[]): void {
 
         if (term.plus !== undefined && !Number.isInteger(term.plus)) {
           throw new Error(
-            `expr term #${j} of component #${i} has invalid plus: ${term.plus}`
+            `expr term #${j} of component #${i} has invalid plus: ${term.plus}`,
           );
         }
       }
@@ -42,7 +42,7 @@ export function assertValidComponents(components: DamageComponent[]): void {
 
     if (comp.bonus !== undefined && !Number.isInteger(comp.bonus)) {
       throw new Error(
-        `Damage component #${i} has invalid bonus: ${comp.bonus}`
+        `Damage component #${i} has invalid bonus: ${comp.bonus}`,
       );
     }
   }
@@ -50,7 +50,7 @@ export function assertValidComponents(components: DamageComponent[]): void {
 
 export function avgDamage(
   components: DamageComponent[],
-  isCrit: boolean
+  isCrit: boolean,
 ): number {
   if (!components || components.length === 0) return 0;
 

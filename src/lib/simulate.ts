@@ -91,9 +91,6 @@ export function simulateDPR(trials: number, params: CalcInput): SimResult {
   let mean = 0;
   let sumSqDev = 0;
   let variance = 0;
-  let se: number;
-  let ciLow: number;
-  let ciHigh: number;
 
   for (let i = 0; i < trials; i++) {
     n++;
@@ -108,10 +105,10 @@ export function simulateDPR(trials: number, params: CalcInput): SimResult {
       damage = 0;
     }
 
-    let delta = damage - mean;
+    const delta = damage - mean;
     mean += delta / n;
 
-    let delta2 = damage - mean;
+    const delta2 = damage - mean;
     sumSqDev += delta * delta2;
   }
 
@@ -123,10 +120,10 @@ export function simulateDPR(trials: number, params: CalcInput): SimResult {
 
   variance = Math.max(0, variance);
 
-  se = Math.sqrt(variance / n);
+  const se = Math.sqrt(variance / n);
 
-  ciLow = mean - 1.96 * se;
-  ciHigh = mean + 1.96 * se;
+  const ciLow = mean - 1.96 * se;
+  const ciHigh = mean + 1.96 * se;
 
   return { mean, ciLow, ciHigh };
 }

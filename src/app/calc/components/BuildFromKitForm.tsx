@@ -1,9 +1,13 @@
 "use client";
 
-import { useReducer, ChangeEvent, FormEvent } from "react";
+import { useReducer, ChangeEvent, FormEvent, useState, useEffect } from "react";
 import { gql } from "@apollo/client";
 import { useQuery, useLazyQuery } from "@apollo/client/react";
 import { SIMULATE_PROFILE, SimulateProfileData } from "./AttackProfileForm";
+import { useApolloClient } from "@apollo/client/react";
+import { DprPoint, DprVsAcChart } from "./DprVsAcChart";
+import { generateDprVsAcChartData } from "./charting";
+import { CALCULATE_PROFILE } from "./AttackProfileForm";
 
 const GET_KITS_AND_EFFECTS = gql`
   query GetKitsAndEffects {
@@ -162,7 +166,58 @@ type SimulateProfileVars = {
 };
 
 export default function BuildFromKitForm() {
+  type BuildResult = BuildFromKitData["buildFromKit"]["result"];
+  type SimResult = SimulateProfileData["simulateProfile"];
+
+  const client = useApolloClient();
+  const [buildResult, setBuildResult] = useState<BuildResult | null>(null);
+  // const [builtProfile, setBuiltProfile] = useState<
+  //   BuildFromKitData["buildFromKit"]["profile"] | null
+  // >(null);
+
+  const [simResult, setSimResult] = useState<SimResult | null>(null);
+  const [hasBuild, setHasBuild] = useState(false);
+  const [hasSim, setHasSim] = useState(false);
+
+  const [chartData, setChartData] = useState<DprPoint[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState<string | null>(null);
+
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  function clearOutputs() {
+    setBuildResult(null);
+    // setBuiltProfile(null);
+    setSimResult(null);
+    setHasBuild(false);
+    setHasSim(false);
+    setChartData([]);
+    setChartLoading(false);
+    setChartError(null);
+  }
+
+  async function generateChartFromBuiltProfile(
+    profile: SimulateProfileVars["profile"]
+  ) {
+    setChartError(null);
+    setChartLoading(true);
+    try {
+      const points = await generateDprVsAcChartData({
+        client,
+        calculateQuery: CALCULATE_PROFILE,
+        baseProfile: profile,
+      });
+      setChartData(points);
+    } catch (err: unknown) {
+      console.error(err);
+      setChartError(
+        err instanceof Error ? err.message : "Failed to generate chart"
+      );
+      setChartData([]);
+    } finally {
+      setChartLoading(false);
+    }
+  }
 
   const {
     data,
@@ -172,13 +227,11 @@ export default function BuildFromKitForm() {
 
   const [
     runBuild,
-    { data: buildData, loading: loadingBuild, error: buildError, called },
+    { data: buildData, loading: loadingBuild, error: buildError },
   ] = useLazyQuery<BuildFromKitData, BuildFromKitVars>(BUILD_FROM_KIT);
 
-  const [
-    runSim,
-    { data: simData, loading: simLoading, error: simError, called: simCalled },
-  ] = useLazyQuery<SimulateProfileData, SimulateProfileVars>(SIMULATE_PROFILE);
+  const [runSim, { data: simData, loading: simLoading, error: simError }] =
+    useLazyQuery<SimulateProfileData, SimulateProfileVars>(SIMULATE_PROFILE);
 
   const selectedKit = data?.kits.find((k) => k.id === state.kitId);
 
@@ -189,23 +242,48 @@ export default function BuildFromKitForm() {
         )
       : data?.effects ?? [];
 
+  useEffect(() => {
+    const res = buildData?.buildFromKit?.result;
+    const profile = buildData?.buildFromKit?.profile;
+    if (!res || !profile) return;
+    setBuildResult(res);
+    // setBuiltProfile(profile);
+    setHasBuild(true);
+
+    const inputProfile = buildProfileInputFromKit(profile);
+    void generateChartFromBuiltProfile(inputProfile);
+  }, [buildData]);
+
+  useEffect(() => {
+    const sim = simData?.simulateProfile;
+    if (sim) {
+      setSimResult(sim);
+      setHasSim(true);
+    }
+  }, [simData]);
+
   function onTopFieldChange(
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
+    clearOutputs();
     const { name, value } = e.target as HTMLInputElement;
     dispatch({
       type: "field",
-      name: name as "kitId" | "level" | "targetAC",
+      name: name as "kitId" | "level" | "targetAC" | "trials",
       value,
     });
   }
 
   function onEffectToggle(id: string) {
+    clearOutputs();
     dispatch({ type: "toggleEffect", id });
   }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
+
+    setSimResult(null);
+    setHasSim(false);
 
     const level = toInt(state.level);
     const targetAC = toInt(state.targetAC);
@@ -268,16 +346,59 @@ export default function BuildFromKitForm() {
       })),
     };
   }
-  function handleSimulate() {
-    if (!buildData) {
+  async function handleSimulate() {
+    dispatch({ type: "clearFormError" });
+
+    setBuildResult(null);
+    // setBuiltProfile(null);
+    setHasBuild(false);
+
+    setSimResult(null);
+    setHasSim(false);
+
+    const level = toInt(state.level);
+    const targetAC = toInt(state.targetAC);
+
+    if (!state.kitId) {
+      dispatch({ type: "setFormError", message: "Please select a class." });
+      return;
+    }
+    if (level < 1 || level > 20) {
       dispatch({
         type: "setFormError",
-        message: "Run Calculate first to build the profile.",
+        message: "Level must be between 1 and 20.",
       });
       return;
     }
-    const kitProfile = buildData?.buildFromKit.profile;
-    const inputProfile = buildProfileInputFromKit(kitProfile);
+    if (targetAC < 1) {
+      dispatch({
+        type: "setFormError",
+        message: "Target AC must be at least 1.",
+      });
+      return;
+    }
+
+    const input: BuildFromKitVars["input"] = {
+      kitId: state.kitId,
+      level,
+      effectIds: state.effectIds,
+      targetAC,
+    };
+
+    const res = await runBuild({ variables: { input } });
+
+    const builtProfile = res.data?.buildFromKit.profile;
+    if (!builtProfile) {
+      dispatch({
+        type: "setFormError",
+        message: "Failed to build profile for simulation.",
+      });
+      return;
+    }
+
+    const inputProfile = buildProfileInputFromKit(builtProfile);
+
+    void generateChartFromBuiltProfile(inputProfile);
 
     runSim({
       variables: {
@@ -377,7 +498,7 @@ export default function BuildFromKitForm() {
 
           <button
             type="button"
-            disabled={simLoading || !buildData}
+            disabled={simLoading || loadingBuild || loadingMeta}
             onClick={handleSimulate}
             className="rounded-2xl px-4 py-2 border shadow-sm disabled:opacity-60"
           >
@@ -401,13 +522,32 @@ export default function BuildFromKitForm() {
 
           <button
             type="button"
-            onClick={() => dispatch({ type: "reset" })}
+            onClick={() => {
+              dispatch({ type: "reset" });
+              clearOutputs();
+            }}
             className="rounded-2xl px-4 py-2 border"
           >
             Reset
           </button>
         </div>
       </form>
+
+      <section className="mt-6">
+        <p className="text-sm text-gray-600 mb-2">
+          Chart: analytic expected DPR vs AC (normal / advantage /
+          disadvantage).
+        </p>
+        {chartLoading && (
+          <p className="text-sm text-gray-600 mb-2">
+            Generating DPR vs AC chart...
+          </p>
+        )}
+        {chartError && (
+          <p className="text-sm text-red-600 mb-2">{chartError}</p>
+        )}
+        <DprVsAcChart data={chartData} />
+      </section>
 
       <section className="rounded-2xl border p-4 mt-4">
         <h2 className="font-medium mb-2">Results</h2>
@@ -416,38 +556,30 @@ export default function BuildFromKitForm() {
             Error: {buildError?.message || simError?.message}
           </p>
         )}
-        {!called && !simCalled && (
-          <p className="text-gray-600">Enter values and hit Calculate.</p>
+        {!hasBuild && !hasSim && (
+          <p className="text-gray-600">
+            Enter values and hit Calculate or Simulate.
+          </p>
         )}
-        {called && !loadingBuild && !buildError && (
+        {hasBuild && !loadingBuild && !buildError && (
           <>
             <p>
-              Hit Chance:{" "}
-              <strong>
-                {toPercent(buildData?.buildFromKit.result.hitChance)}
-              </strong>
+              Hit Chance: <strong>{toPercent(buildResult?.hitChance)}</strong>
             </p>
             <p>
-              Crit Chance:{" "}
-              <strong>
-                {toPercent(buildData?.buildFromKit.result.critChance)}
-              </strong>
+              Crit Chance: <strong>{toPercent(buildResult?.critChance)}</strong>
             </p>
             <p>
               Expected Damage:{" "}
-              <strong>
-                {buildData?.buildFromKit.result.expectedDamage?.toFixed(2)}
-              </strong>
+              <strong>{buildResult?.expectedDamage?.toFixed(2)}</strong>
             </p>
           </>
         )}
 
-        {simCalled && !simLoading && !simError && (
+        {hasSim && !simLoading && !simError && simResult && (
           <p>
-            Simulated Damage:{" "}
-            <strong>{simData?.simulateProfile?.mean.toFixed(2)}</strong> (95% CI{" "}
-            {simData?.simulateProfile?.ciLow.toFixed(2)}-
-            {simData?.simulateProfile?.ciHigh.toFixed(2)})
+            Simulated Damage: <strong>{simResult.mean.toFixed(2)}</strong> (95%
+            CI {simResult.ciLow.toFixed(2)}-{simResult.ciHigh.toFixed(2)})
           </p>
         )}
         {loadingBuild && <p>Compiling Build...</p>}

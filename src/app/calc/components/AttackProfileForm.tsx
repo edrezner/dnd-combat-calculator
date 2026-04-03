@@ -1,11 +1,18 @@
 "use client";
 
-import { useState, useReducer, ChangeEvent, SyntheticEvent } from "react";
+import {
+  useState,
+  useReducer,
+  ChangeEvent,
+  SyntheticEvent,
+  useEffect,
+} from "react";
 import { gql } from "@apollo/client";
 import { useLazyQuery, useApolloClient } from "@apollo/client/react";
 import { DprPoint, DprVsAcChart } from "./DprVsAcChart";
+import { generateDprVsAcChartData } from "./charting";
 
-const CALCULATE_PROFILE = gql`
+export const CALCULATE_PROFILE = gql`
   query CalculateProfile($profile: AttackProfileInput!) {
     calculateProfile(profile: $profile) {
       hitChance
@@ -25,7 +32,11 @@ export const SIMULATE_PROFILE = gql`
   }
 `;
 
-type Die = 4 | 6 | 8 | 10 | 12 | 20;
+const DIE_SIDES = [4, 6, 8, 10, 12, 20] as const;
+type Die = (typeof DIE_SIDES)[number];
+function isDie(x: number): x is Die {
+  return (DIE_SIDES as readonly number[]).includes(x);
+}
 
 type DamageRow = {
   count: string;
@@ -57,7 +68,7 @@ type Action =
       type: "rowField";
       index: number;
       name: keyof DamageRow;
-      value: string | boolean;
+      value: DamageRow[keyof DamageRow];
     }
   | { type: "reset" }
   | { type: "setFormError"; message: string }
@@ -149,16 +160,49 @@ function reducer(state: State, action: Action): State {
 }
 
 export default function AttackProfileForm() {
+  type CalcResult = CalcProfileData["calculateProfile"];
+  type SimResult = SimulateProfileData["simulateProfile"];
+
+  const [calcResult, setCalcResult] = useState<CalcResult | null>(null);
+  const [simResult, setSimResult] = useState<SimResult | null>(null);
+  const [hasCalc, setHasCalc] = useState(false);
+  const [hasSim, setHasSim] = useState(false);
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const [runCalc, { data, loading, error, called }] = useLazyQuery<
+  function clearOutputs() {
+    setCalcResult(null);
+    setSimResult(null);
+    setHasCalc(false);
+    setHasSim(false);
+
+    setChartData([]);
+    setChartError(null);
+    setChartLoading(false);
+  }
+
+  const [runCalc, { data, loading, error }] = useLazyQuery<
     CalcProfileData,
     CalcProfileVars
-  >(CALCULATE_PROFILE);
-  const [
-    runSim,
-    { data: simData, loading: simLoading, error: simError, called: simCalled },
-  ] = useLazyQuery<SimulateProfileData, SimulateProfileVars>(SIMULATE_PROFILE);
+  >(CALCULATE_PROFILE, { fetchPolicy: "no-cache" });
+
+  const [runSim, { data: simData, loading: simLoading, error: simError }] =
+    useLazyQuery<SimulateProfileData, SimulateProfileVars>(SIMULATE_PROFILE, {
+      fetchPolicy: "no-cache",
+    });
+
+  useEffect(() => {
+    if (data?.calculateProfile) {
+      setCalcResult(data.calculateProfile);
+      setHasCalc(true);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    if (simData?.simulateProfile) {
+      setSimResult(simData.simulateProfile);
+      setHasSim(true);
+    }
+  }, [simData]);
 
   const client = useApolloClient();
 
@@ -175,6 +219,7 @@ export default function AttackProfileForm() {
   function onTopFieldChange(
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
+    clearOutputs();
     const { type, name } = e.target as HTMLInputElement;
     const value =
       type === "checkbox"
@@ -190,16 +235,19 @@ export default function AttackProfileForm() {
   function onRowChange(
     index: number,
     name: keyof DamageRow,
-    value: string | boolean
+    value: DamageRow[keyof DamageRow]
   ) {
+    clearOutputs();
     dispatch({ type: "rowField", index, name, value });
   }
 
   function addRow() {
+    clearOutputs();
     dispatch({ type: "addRow" });
   }
 
   function removeRow(index: number) {
+    clearOutputs();
     dispatch({ type: "removeRow", index });
   }
 
@@ -254,94 +302,17 @@ export default function AttackProfileForm() {
     setChartLoading(true);
 
     try {
-      let acStartIndex = baseProfile.targetAC;
-
-      if (acStartIndex >= 4) acStartIndex -= 3;
-
-      const acValues = Array.from({ length: 11 }, (_, i) => i + acStartIndex);
-
-      const results = await Promise.all(
-        acValues.map(async (ac) => {
-          const varsNormal: CalcProfileVars = {
-            profile: {
-              ...baseProfile,
-              targetAC: ac,
-              advantage: false,
-              disadvantage: false,
-            },
-          };
-
-          const varsAdvantage: CalcProfileVars = {
-            profile: {
-              ...baseProfile,
-              targetAC: ac,
-              advantage: true,
-              disadvantage: false,
-            },
-          };
-
-          const varsDisadvantage: CalcProfileVars = {
-            profile: {
-              ...baseProfile,
-              targetAC: ac,
-              advantage: false,
-              disadvantage: true,
-            },
-          };
-
-          // Currently running 3 queries for each AC value (normal/adv/dis).
-          // Look into batched/multi-mode GraphQL Resolver or client side math for scalability
-          const { data: dataNormal } = await client.query<
-            CalcProfileData,
-            CalcProfileVars
-          >({
-            query: CALCULATE_PROFILE,
-            variables: varsNormal,
-            fetchPolicy: "no-cache",
-          });
-
-          const { data: dataAdv } = await client.query<
-            CalcProfileData,
-            CalcProfileVars
-          >({
-            query: CALCULATE_PROFILE,
-            variables: varsAdvantage,
-            fetchPolicy: "no-cache",
-          });
-
-          const { data: dataDisadv } = await client.query<
-            CalcProfileData,
-            CalcProfileVars
-          >({
-            query: CALCULATE_PROFILE,
-            variables: varsDisadvantage,
-            fetchPolicy: "no-cache",
-          });
-
-          if (
-            !dataNormal ||
-            !dataNormal.calculateProfile ||
-            !dataAdv ||
-            !dataAdv.calculateProfile ||
-            !dataDisadv ||
-            !dataDisadv.calculateProfile
-          ) {
-            throw new Error("No data returned from calculateProfile");
-          }
-
-          return {
-            ac,
-            dprNormal: dataNormal.calculateProfile.expectedDamage,
-            dprAdvantage: dataAdv.calculateProfile.expectedDamage,
-            dprDisadvantage: dataDisadv.calculateProfile.expectedDamage,
-          } satisfies DprPoint;
-        })
-      );
-
+      const results = await generateDprVsAcChartData({
+        client,
+        calculateQuery: CALCULATE_PROFILE,
+        baseProfile,
+      });
       setChartData(results);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setChartError(err.message ?? "Failed to generate chart");
+      const msg =
+        err instanceof Error ? err.message : "Failed to generate chart";
+      setChartError(msg);
       setChartData([]);
     } finally {
       setChartLoading(false);
@@ -357,9 +328,17 @@ export default function AttackProfileForm() {
     const profile = buildProfileFromState();
     if (!profile) return;
 
-    if (eventSubmitter === "Calculate") runCalc({ variables: { profile } });
-    if (eventSubmitter === "Simulate")
+    if (eventSubmitter === "Calculate") {
+      setSimResult(null);
+      setHasSim(false);
+      runCalc({ variables: { profile } });
+    }
+
+    if (eventSubmitter === "Simulate") {
+      setCalcResult(null);
+      setHasCalc(false);
       runSim({ variables: { profile, trials: toInt(state.trials) } });
+    }
 
     void generateChartFromProfile(profile);
   }
@@ -463,13 +442,10 @@ export default function AttackProfileForm() {
                 <span className="text-sm text-gray-600">Sides</span>
                 <select
                   value={row.sides}
-                  onChange={(e) =>
-                    onRowChange(
-                      i,
-                      "sides",
-                      Number(e.target.value) as unknown as string
-                    )
-                  }
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    onRowChange(i, "sides", isDie(n) ? n : "");
+                  }}
                   className="rounded-xl border px-3 py-2"
                 >
                   <option value="">—</option>
@@ -557,7 +533,10 @@ export default function AttackProfileForm() {
           </label>
           <button
             type="button"
-            onClick={() => dispatch({ type: "reset" })}
+            onClick={() => {
+              dispatch({ type: "reset" });
+              clearOutputs();
+            }}
             className="rounded-2xl px-4 py-2 border"
           >
             Reset
@@ -588,36 +567,31 @@ export default function AttackProfileForm() {
             Error: {error?.message || simError?.message}
           </p>
         )}
-        {!called && !simCalled && (
+        {!hasCalc && !hasSim && (
           <p className="text-gray-600">
             Enter values and hit Calculate or Simulate.
           </p>
         )}
-        {called && !loading && !error && (
+        {hasCalc && !loading && !error && (
           <>
             <p>
-              Hit Chance:{" "}
-              <strong>{toPercent(data?.calculateProfile?.hitChance)}</strong>
+              Hit Chance: <strong>{toPercent(calcResult?.hitChance)}</strong>
             </p>
             <p>
-              Crit Chance:{" "}
-              <strong>{toPercent(data?.calculateProfile?.critChance)}</strong>
+              Crit Chance: <strong>{toPercent(calcResult?.critChance)}</strong>
             </p>
             <p>
               Expected Damage:{" "}
-              <strong>
-                {data?.calculateProfile?.expectedDamage?.toFixed(2)}
-              </strong>
+              <strong>{calcResult?.expectedDamage?.toFixed(2)}</strong>
             </p>
           </>
         )}
-        {simCalled && !simLoading && !simError && (
+        {hasSim && !simLoading && !simError && (
           <>
             <p>
-              Simulated Damage:{" "}
-              <strong>{simData?.simulateProfile?.mean.toFixed(2)}</strong> (95%
-              CI {simData?.simulateProfile?.ciLow.toFixed(2)}-
-              {simData?.simulateProfile?.ciHigh.toFixed(2)})
+              Simulated Damage: <strong>{simResult?.mean?.toFixed(2)}</strong>{" "}
+              (95% CI {simResult?.ciLow?.toFixed(2)}-
+              {simResult?.ciHigh?.toFixed(2)})
             </p>
           </>
         )}

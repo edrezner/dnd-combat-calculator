@@ -30,7 +30,7 @@ function isValidScore(v: unknown, { min = 3, max = 25 } = {}): v is number {
 }
 
 function checkAbilityScores(
-  scores: Partial<AbilityScores>
+  scores: Partial<AbilityScores>,
 ): asserts scores is AbilityScores {
   const req: (keyof AbilityScores)[] = [
     "str",
@@ -74,14 +74,14 @@ function mapDiceTermInput(t: { count: number; sides: number; plus?: number }) {
   if (!Number.isInteger(sides) || !sidesValidate(sides)) {
     throw new GraphQLError(
       `DiceTerm.sides must be 4, 6, 8, 10, 12, or 20 (received ${sides})`,
-      { extensions: { code: "BAD_USER_INPUT" } }
+      { extensions: { code: "BAD_USER_INPUT" } },
     );
   }
 
   if (!Number.isInteger(plus)) {
     throw new GraphQLError(
       `DiceTerm.plus must be an integer (received ${plus})`,
-      { extensions: { code: "BAD_USER_INPUT" } }
+      { extensions: { code: "BAD_USER_INPUT" } },
     );
   }
 
@@ -93,8 +93,8 @@ function mapDamageComponentInput(c: {
   bonus?: number | null;
   critDoublesDice?: boolean | null;
 }) {
-  if (!Array.isArray(c.expr) || c.expr.length === 0) {
-    throw new GraphQLError(`DamageComponent.expr must be a non-empty array`, {
+  if (!Array.isArray(c.expr)) {
+    throw new GraphQLError(`DamageComponent.expr must be an array`, {
       extensions: { code: "BAD_USER_INPUT" },
     });
   }
@@ -105,7 +105,17 @@ function mapDamageComponentInput(c: {
   if (!Number.isInteger(bonus)) {
     throw new GraphQLError(
       `DamageComponent.bonus must be an integer (received ${bonus})`,
-      { extensions: { code: "BAD_USER_INPUT" } }
+      { extensions: { code: "BAD_USER_INPUT" } },
+    );
+  }
+
+  const hasDice = expr.length > 0;
+  const hasBonus = c.bonus !== undefined && c.bonus !== null;
+
+  if (!hasDice && !hasBonus) {
+    throw new GraphQLError(
+      `DamageComponent must include dice or a flat bonus`,
+      { extensions: { code: "BAD_USER_INPUT" } },
     );
   }
 
@@ -179,7 +189,7 @@ export const characterResolvers = {
     },
     simulate: (
       _: unknown,
-      { input, trials }: { input: CalcInput; trials: number }
+      { input, trials }: { input: CalcInput; trials: number },
     ) => {
       const {
         attackBonus,
@@ -251,7 +261,7 @@ export const characterResolvers = {
           "Target's AC must be an integer greater than 0.",
           {
             extensions: { code: "BAD_USER_INPUT" },
-          }
+          },
         );
       }
 
@@ -284,7 +294,7 @@ export const characterResolvers = {
       };
 
       const effects = ALL_EFFECTS.filter((effect) =>
-        effectIds.includes(effect.id)
+        effectIds.includes(effect.id),
       );
 
       // EffectContext type needs an object, not just a number
@@ -293,7 +303,7 @@ export const characterResolvers = {
       const { profile: finalProfile /* requiresSimulation */ } = applyEffects(
         base,
         effects,
-        ctx
+        ctx,
       );
 
       const hc = hitChance(finalProfile);
@@ -311,7 +321,7 @@ export const characterResolvers = {
     },
     simulateProfile: (
       _: unknown,
-      { profile, trials }: { profile: AttackProfile; trials: number }
+      { profile, trials }: { profile: AttackProfile; trials: number },
     ) => {
       const simProfile = calcInputFromProfile(profile);
 
@@ -328,7 +338,7 @@ export const characterResolvers = {
   Mutation: {
     createCharacter: (
       _: unknown,
-      { input }: { input: Omit<CharacterData, "id"> }
+      { input }: { input: Omit<CharacterData, "id"> },
     ) => {
       const { level, abilityScores } = input;
 
@@ -341,7 +351,7 @@ export const characterResolvers = {
     },
     updateCharacter: (
       _: unknown,
-      { input }: { input: Partial<CharacterData> & { id: string } }
+      { input }: { input: Partial<CharacterData> & { id: string } },
     ) => {
       const { id, name, klass, level, abilityScores: patch } = input;
 
@@ -393,7 +403,7 @@ export const characterResolvers = {
 
     toHit: (
       character: CharacterData,
-      { using, proficient = true }: { using: string; proficient?: boolean }
+      { using, proficient = true }: { using: string; proficient?: boolean },
     ) => {
       const key = normalizeAbility(using);
       const mod = abilityMod(character.abilityScores[key]);
