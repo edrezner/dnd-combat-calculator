@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Header from "../components/Header";
 import QuickCalcForm from "./components/QuickCalcForm";
 import AttackProfileForm from "./components/AttackProfileForm";
 import BuildFromKitForm from "./components/BuildFromKitForm";
@@ -16,6 +17,7 @@ export default function CalcPage() {
 
   return (
     <main className="mx-auto max-w-xl p-6 space-y-6">
+      <Header />
       <h1 className="text-2xl font-semibold">DPR Calculator</h1>
 
       {/* Toggle */}

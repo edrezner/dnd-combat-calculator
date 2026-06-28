@@ -1,8 +1,10 @@
 import Link from "next/link";
+import Header from "./components/Header";
 
 export default function Home() {
   return (
     <main className="max-w-5xl mx-auto px-6 py-12">
+      <Header />
       <section className="text-center space-y-4 mb-16">
         <h1>D&D Combat Calculator</h1>
 
