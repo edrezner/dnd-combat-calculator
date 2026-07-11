@@ -2,13 +2,17 @@ import Link from "next/link";
 
 export default function Header() {
   return (
-    <header>
-      <nav className="flex items-center gap-4">
-        <Link href="/">D&D Combat Calculator</Link>
-        <Link href="/" className="ml-auto">
+    <header className="border-b">
+      <nav className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-4">
+        <Link className="hover:underline" href="/">
+          D&D Combat Calculator
+        </Link>
+        <Link href="/" className="hover:underline ml-auto">
           Home
         </Link>
-        <Link href="/calc">Calculator</Link>
+        <Link className="hover:underline" href="/calc">
+          Calculator
+        </Link>
       </nav>
     </header>
   );
