@@ -12,6 +12,12 @@ enum Mode {
   KIT = "kit",
 }
 
+const modeOptions = [
+  { mode: Mode.QUICK, label: "Quick Calc" },
+  { mode: Mode.PROFILE, label: "Attack Profile" },
+  { mode: Mode.KIT, label: "Class Kit" },
+];
+
 export default function CalcPage() {
   const [mode, setMode] = useState(Mode.QUICK);
 
@@ -36,37 +42,22 @@ export default function CalcPage() {
 
         {/* Toggle */}
         <div className="grid gap-2 sm:grid-cols-3">
-          <button
-            onClick={() => setMode(Mode.QUICK)}
-            className={`rounded-lg border px-4 py-2 transition-colors ${
-              mode === Mode.QUICK
-                ? "bg-blue-600 text-white"
-                : "hover:bg-gray-100"
-            }`}
-            disabled={mode === Mode.QUICK}
-          >
-            Quick Calc
-          </button>
-          <button
-            onClick={() => setMode(Mode.PROFILE)}
-            className={`rounded-lg border px-4 py-2 transition-colors ${
-              mode === Mode.PROFILE
-                ? "bg-blue-600 text-white"
-                : "hover:bg-gray-100"
-            } `}
-            disabled={mode === Mode.PROFILE}
-          >
-            Attack Profile
-          </button>
-          <button
-            onClick={() => setMode(Mode.KIT)}
-            className={`rounded-lg border px-4 py-2 transition-colors ${
-              mode === Mode.KIT ? "bg-blue-600 text-white" : "hover:bg-gray-100"
-            } `}
-            disabled={mode === Mode.KIT}
-          >
-            Class Kit
-          </button>
+          {modeOptions.map((button) => {
+            return (
+              <button
+                key={button.mode}
+                onClick={() => setMode(button.mode)}
+                className={`rounded-lg border px-4 py-2 transition-colors ${
+                  mode === button.mode
+                    ? "bg-blue-600 text-white"
+                    : "hover:bg-gray-100"
+                }`}
+                disabled={mode === button.mode}
+              >
+                {button.label}
+              </button>
+            );
+          })}
         </div>
         {/* Forms */}
         {mode === Mode.QUICK ? (
