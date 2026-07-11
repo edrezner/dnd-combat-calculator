@@ -160,7 +160,6 @@ export default function QuickCalcForm() {
 
   return (
     <main className="mx-auto max-w-xl p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">DPR Calculator</h1>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <label className="flex flex-col">
