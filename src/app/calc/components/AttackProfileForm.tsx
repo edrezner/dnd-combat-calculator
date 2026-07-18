@@ -217,7 +217,7 @@ export default function AttackProfileForm() {
   }
 
   function onTopFieldChange(
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) {
     clearOutputs();
     const { type, name } = e.target as HTMLInputElement;
@@ -235,7 +235,7 @@ export default function AttackProfileForm() {
   function onRowChange(
     index: number,
     name: keyof DamageRow,
-    value: DamageRow[keyof DamageRow]
+    value: DamageRow[keyof DamageRow],
   ) {
     clearOutputs();
     dispatch({ type: "rowField", index, name, value });
@@ -296,7 +296,7 @@ export default function AttackProfileForm() {
   };
 
   const generateChartFromProfile = async (
-    baseProfile: CalcProfileVars["profile"]
+    baseProfile: CalcProfileVars["profile"],
   ) => {
     setChartError(null);
     setChartLoading(true);
@@ -544,22 +544,6 @@ export default function AttackProfileForm() {
         </div>
       </form>
 
-      <section className="mt-6">
-        <p className="text-sm text-gray-600 mb-2">
-          Chart: analytic expected DPR vs AC (normal / advantage /
-          disadvantage).
-        </p>
-        {chartLoading && (
-          <p className="text-sm text-gray-600 mb-2">
-            Generating DPR vs AC chart...
-          </p>
-        )}
-        {chartError && (
-          <p className="text-sm text-red-600 mb-2">{chartError}</p>
-        )}
-        <DprVsAcChart data={chartData} />
-      </section>
-
       <section className="rounded-2xl border p-4 mt-4">
         <h2 className="font-medium mb-2">Results</h2>
         {(error || simError) && (
@@ -596,6 +580,22 @@ export default function AttackProfileForm() {
           </>
         )}
         {(loading || simLoading) && <p>Crunching...</p>}
+      </section>
+
+      <section className="rounded-2xl border p-4 mt-4">
+        <p className="text-sm text-gray-600 mb-2">
+          Chart: analytic expected DPR vs AC (normal / advantage /
+          disadvantage).
+        </p>
+        {chartLoading && (
+          <p className="text-sm text-gray-600 mb-2">
+            Generating DPR vs AC chart...
+          </p>
+        )}
+        {chartError && (
+          <p className="text-sm text-red-600 mb-2">{chartError}</p>
+        )}
+        <DprVsAcChart data={chartData} />
       </section>
     </>
   );

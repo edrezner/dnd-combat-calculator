@@ -197,7 +197,7 @@ export default function BuildFromKitForm() {
   }
 
   async function generateChartFromBuiltProfile(
-    profile: SimulateProfileVars["profile"]
+    profile: SimulateProfileVars["profile"],
   ) {
     setChartError(null);
     setChartLoading(true);
@@ -211,7 +211,7 @@ export default function BuildFromKitForm() {
     } catch (err: unknown) {
       console.error(err);
       setChartError(
-        err instanceof Error ? err.message : "Failed to generate chart"
+        err instanceof Error ? err.message : "Failed to generate chart",
       );
       setChartData([]);
     } finally {
@@ -238,9 +238,9 @@ export default function BuildFromKitForm() {
   const visibleEffects =
     selectedKit && data
       ? data.effects.filter((effect) =>
-          selectedKit.availableEffects.includes(effect.id)
+          selectedKit.availableEffects.includes(effect.id),
         )
-      : data?.effects ?? [];
+      : (data?.effects ?? []);
 
   useEffect(() => {
     const res = buildData?.buildFromKit?.result;
@@ -263,7 +263,7 @@ export default function BuildFromKitForm() {
   }, [simData]);
 
   function onTopFieldChange(
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) {
     clearOutputs();
     const { name, value } = e.target as HTMLInputElement;
@@ -325,7 +325,7 @@ export default function BuildFromKitForm() {
   }
 
   function buildProfileInputFromKit(
-    profile: BuildFromKitData["buildFromKit"]["profile"]
+    profile: BuildFromKitData["buildFromKit"]["profile"],
   ): SimulateProfileVars["profile"] {
     // Strip __typename at every level & normalize optional fields
     return {
@@ -533,22 +533,6 @@ export default function BuildFromKitForm() {
         </div>
       </form>
 
-      <section className="mt-6">
-        <p className="text-sm text-gray-600 mb-2">
-          Chart: analytic expected DPR vs AC (normal / advantage /
-          disadvantage).
-        </p>
-        {chartLoading && (
-          <p className="text-sm text-gray-600 mb-2">
-            Generating DPR vs AC chart...
-          </p>
-        )}
-        {chartError && (
-          <p className="text-sm text-red-600 mb-2">{chartError}</p>
-        )}
-        <DprVsAcChart data={chartData} />
-      </section>
-
       <section className="rounded-2xl border p-4 mt-4">
         <h2 className="font-medium mb-2">Results</h2>
         {(buildError || simError) && (
@@ -583,6 +567,22 @@ export default function BuildFromKitForm() {
           </p>
         )}
         {loadingBuild && <p>Compiling Build...</p>}
+      </section>
+
+      <section className="rounded-2xl border p-4 mt-4">
+        <p className="text-sm text-gray-600 mb-2">
+          Chart: analytic expected DPR vs AC (normal / advantage /
+          disadvantage).
+        </p>
+        {chartLoading && (
+          <p className="text-sm text-gray-600 mb-2">
+            Generating DPR vs AC chart...
+          </p>
+        )}
+        {chartError && (
+          <p className="text-sm text-red-600 mb-2">{chartError}</p>
+        )}
+        <DprVsAcChart data={chartData} />
       </section>
     </>
   );
